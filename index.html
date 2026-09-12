@@ -1226,8 +1226,12 @@ function manualSave() {
     }
     setCloudStatus('loading', '正在保存到云端…');
     
-    // 先保存到云端
-    pushCloudDB().then(success => {
+    // 先拉取最新版本号
+    pullCloudDB().then(db => {
+        // 版本号已在 pullCloudDB 里更新
+        // 现在用最新版本号保存
+        return pushCloudDB();
+    }).then(success => {
         if (success) {
             // 云端保存成功后，本地备份
             try {
@@ -1236,6 +1240,8 @@ function manualSave() {
                 }
             } catch (e) {}
             showToast('✅ 保存成功，已上传云端并备份', 'success');
+        } else {
+            showToast('❌ 保存失败，请重试', 'error');
         }
     }).catch(err => {
         showToast('❌ 保存失败：' + err.message, 'error');
