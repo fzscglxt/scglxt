@@ -1284,7 +1284,9 @@ function reloadDataFromCloud() {
             return;
         }
         // 手动刷新永远以云端为准
-        applyRemoteDB(remote);
+        cloud.version = remote.version;
+        cloud.remoteUpdatedAt = remote.updatedAt;
+        applyRemoteDB(remote.db);
         const meta = getCloudMeta();
         setCloudMeta({ cloudVersion: Number(cloud.version)||0, localModifiedAt: Number(DB._localModifiedAt)||0, cloudSyncedAt: Date.now() });
         setCloudStatus('synced', '已刷新为云端最新');
