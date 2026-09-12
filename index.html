@@ -1250,14 +1250,14 @@ function initCloudSync(onDone) {
             const localModified = Number(DB._localModifiedAt) || 0;
             const cloudSyncedAt = Number(meta.cloudSyncedAt) || 0;
             if (remoteVer > localCloudVer) {
-                // 云端有更新，用云端覆盖本地
-                applyRemoteDB(remote);
+                // 云端有更新，先提示用户，确认后再覆盖
                 cloud.ready = true;
                 cloud.cloudSyncedAt = Date.now();
-                setCloudStatus('synced', '已同步云端数据');
-                // 用云端数据的最后修改时间更新，避免下次进入误判为本地有未推送修改
-                const newLocalModified = Number(DB._localModifiedAt) || 0;
-                setCloudMeta({ cloudVersion: remoteVer, localModifiedAt: newLocalModified, cloudSyncedAt: cloud.cloudSyncedAt });
+                setCloudStatus('warn', '云端有新数据，点击 ↻ 刷新');
+                setCloudMeta({ cloudVersion: remoteVer, localModifiedAt: localModified, cloudSyncedAt: cloud.cloudSyncedAt });
+                if (typeof showToast === 'function') {
+                    showToast('⚠️ 检测到云端有新数据，点击侧边栏 ↻ 按钮可查看最新，你的本地修改会保留', 'info', 5000);
+                }
             } else if (remoteVer === localCloudVer && localModified > cloudSyncedAt) {
                 // 云端没变化，但本地有未推送的修改，推送
                 cloud.ready = true;
@@ -1352,6 +1352,12 @@ const localBackup = {
                 if (allowed === 'granted') {
                     this.dirHandle = rec.handle;
                     console.log('[localBackup] 已恢复备份文件夹授权');
+                } else {
+                    // 权限失效，提示用户重新授权
+                    console.log('[localBackup] 备份权限已失效，需要重新选择文件夹');
+                    if (typeof showToast === 'function') {
+                        showToast('⚠️ 本地备份授权已失效，请点击"选择本地备份文件夹"重新授权', 'warning', 5000);
+                    }
                 }
             }
         } catch (e) { console.warn('[localBackup] init', e); }
