@@ -1243,41 +1243,26 @@ function initCloudSync(onDone) {
     cloud.localModifiedAt = Number(DB._localModifiedAt) || Number(meta.localModifiedAt) || 0;
     cloud.cloudSyncedAt = Number(meta.cloudSyncedAt) || 0;
     pullCloudDB().then(remote => {
-        if (remote) {
-            // 用版本号判断：云端版本比本地记录的高，就以云端为准
-            const localCloudVer = Number(meta.cloudVersion) || 0;
-            const remoteVer = Number(cloud.version) || 0;
-            const localModified = Number(DB._localModifiedAt) || 0;
-            const cloudSyncedAt = Number(meta.cloudSyncedAt) || 0;
-            if (remoteVer > localCloudVer) {
-                // 云端有更新，先提示用户，确认后再覆盖
-                cloud.ready = true;
-                cloud.cloudSyncedAt = Date.now();
-                setCloudStatus('warn', '云端有新数据，点击 ↻ 刷新');
-                setCloudMeta({ cloudVersion: remoteVer, localModifiedAt: localModified, cloudSyncedAt: cloud.cloudSyncedAt });
-                if (typeof showToast === 'function') {
-                    showToast('⚠️ 检测到云端有新数据，点击侧边栏 ↻ 按钮可查看最新，你的本地修改会保留', 'info', 5000);
-                }
-            } else if (remoteVer === localCloudVer && localModified > cloudSyncedAt) {
-                // 云端没变化，但本地有未推送的修改，推送
-                cloud.ready = true;
-                pushCloudDB();
-                setCloudMeta({ cloudVersion: remoteVer, localModifiedAt: localModified, cloudSyncedAt: cloud.cloudSyncedAt });
-            } else {
-                // 一致，直接用本地
-                cloud.ready = true;
-                setCloudStatus('synced', '已同步云端数据');
-                setCloudMeta({ cloudVersion: remoteVer, localModifiedAt: localModified, cloudSyncedAt: cloud.cloudSyncedAt });
-            }
+        if (remote && remote.db) {
+            // 总是以云端数据为准，直接应用
+            cloud.ready = true;
+            cloud.version = remote.version;
+            cloud.remoteUpdatedAt = remote.updatedAt;
+            cloud.cloudSyncedAt = Date.now();
+            
+            applyRemoteDB(remote.db);
+            setCloudMeta({ cloudVersion: remote.version, localModifiedAt: 0, cloudSyncedAt: cloud.cloudSyncedAt });
+            setCloudStatus('synced', '已同步服务器最新数据');
         } else {
+            // 服务器没有数据，才用本地数据并推送
             cloud.ready = true;
             pushCloudDB();
-            setCloudStatus('synced', '已在云端建立数据');
+            setCloudStatus('synced', '已在服务器建立数据');
         }
         if (onDone) onDone();
     }).catch(err => {
         cloud.ready = false;
-        setCloudStatus('error', '云端连接失败，当前为本地数据（点↻重试）');
+        setCloudStatus('error', '服务器连接失败，当前为本地数据（点↻重试）');
         if (onDone) onDone();
     });
 }
