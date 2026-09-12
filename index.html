@@ -1203,7 +1203,7 @@ function pushCloudDB() {
             }
             return false;
         }
-        if (data.error || !data.ok) throw new Error(data.message || 'cloud save failed');
+        if (data.error) throw new Error(data.message || 'cloud save failed');
         cloud.version = data.version;
         cloud.remoteUpdatedAt = data.updatedAt;
         cloud.cloudSyncedAt = Date.now();
