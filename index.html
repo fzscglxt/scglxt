@@ -1253,7 +1253,12 @@ function initCloudSync(onDone) {
             cloud.remoteUpdatedAt = remote.updatedAt;
             cloud.cloudSyncedAt = Date.now();
             
-            applyRemoteDB(remote.db);
+            try {
+                applyRemoteDB(remote.db);
+            } catch(e) {
+                console.warn('applyRemoteDB error', e);
+            }
+            
             setCloudMeta({ cloudVersion: remote.version, localModifiedAt: 0, cloudSyncedAt: cloud.cloudSyncedAt });
             setCloudStatus('synced', '已同步服务器最新数据');
         } else {
