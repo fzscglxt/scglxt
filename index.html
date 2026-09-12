@@ -1269,21 +1269,19 @@ function initCloudSync(onDone) {
     const meta = getCloudMeta();
     cloud.localModifiedAt = Number(DB._localModifiedAt) || Number(meta.localModifiedAt) || 0;
     cloud.cloudSyncedAt = Number(meta.cloudSyncedAt) || 0;
-    pullCloudDB().then(remote => {
-        if (remote && remote.db) {
+    pullCloudDB().then(db => {
+        if (db) {
             // 总是以云端数据为准，直接应用
             cloud.ready = true;
-            cloud.version = remote.version;
-            cloud.remoteUpdatedAt = remote.updatedAt;
             cloud.cloudSyncedAt = Date.now();
             
             try {
-                applyRemoteDB(remote.db);
+                applyRemoteDB(db);
             } catch(e) {
                 console.warn('applyRemoteDB error', e);
             }
             
-            setCloudMeta({ cloudVersion: remote.version, localModifiedAt: 0, cloudSyncedAt: cloud.cloudSyncedAt });
+            setCloudMeta({ cloudVersion: cloud.version, localModifiedAt: 0, cloudSyncedAt: cloud.cloudSyncedAt });
             setCloudStatus('synced', '已同步服务器最新数据');
         } else {
             // 服务器没有数据，才用本地数据并推送
@@ -1306,17 +1304,15 @@ function reloadDataFromCloud() {
         return;
     }
     setCloudStatus('loading', '正在刷新云端数据…');
-    pullCloudDB().then(remote => {
-        if (!remote) {
+    pullCloudDB().then(db => {
+        if (!db) {
             setCloudStatus('synced', '云端暂无数据');
             if (typeof showToast === 'function') showToast('云端暂无数据', 'info');
             return;
         }
         // 手动刷新永远以云端为准
-        cloud.version = remote.version;
-        cloud.remoteUpdatedAt = remote.updatedAt;
-        applyRemoteDB(remote.db);
-        const meta = getCloudMeta();
+        applyRemoteDB(db);
+        cloud.ready = true;
         setCloudMeta({ cloudVersion: Number(cloud.version)||0, localModifiedAt: Number(DB._localModifiedAt)||0, cloudSyncedAt: Date.now() });
         setCloudStatus('synced', '已刷新为云端最新');
         if (typeof showToast === 'function') showToast('已刷新为云端最新数据', 'success');
