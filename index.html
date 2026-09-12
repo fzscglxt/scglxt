@@ -338,6 +338,7 @@
         <div class="sidebar-cloud" id="sidebar-cloud">
             <span class="cloud-dot" id="cloud-dot"></span>
             <span class="cloud-text" id="cloud-text">数据加载中…</span>
+            <button class="cloud-refresh" id="cloud-save-btn" title="保存数据到云端并备份" onclick="manualSave()">💾 保存</button>
             <button class="cloud-refresh" id="cloud-refresh-btn" title="从云端刷新最新数据" onclick="reloadDataFromCloud()">↻</button>
         </div>
         <div class="sidebar-footer">v1.0 · 宁波方卓科技有限公司</div>
@@ -1150,13 +1151,13 @@ function setCloudStatus(status, msg) {
     cloud.status = status;
     const dot = document.getElementById('cloud-dot');
     const text = document.getElementById('cloud-text');
-    if (dot) dot.className = 'cloud-dot' + (status === 'synced' ? ' ok' : (status === 'error' || status === 'conflict' ? ' err' : (status === 'warn' ? ' warn' : '')));
+    if (dot) dot.className = 'cloud-dot' + (status === 'synced' ? ' ok' : (status === 'error' || status === 'conflict' ? ' err' : (status === 'warn' || status === 'pending' ? ' warn' : '')));
     if (text) text.textContent = msg || '';
     const loginHint = document.getElementById('login-cloud-hint');
     if (loginHint) {
-        const icon = status === 'synced' ? '✅' : (status === 'error' || status === 'conflict' ? '⚠️' : (status === 'loading' ? '⏳' : '💻'));
+        const icon = status === 'synced' ? '✅' : (status === 'error' || status === 'conflict' ? '⚠️' : (status === 'loading' ? '⏳' : (status === 'pending' ? '📝' : '💻')));
         loginHint.textContent = icon + ' ' + (msg || '');
-        loginHint.style.color = (status === 'error' || status === 'conflict') ? '#c5221f' : '#6b7280';
+        loginHint.style.color = (status === 'error' || status === 'conflict') ? '#c5221f' : (status === 'pending' ? '#b06000' : '#6b7280');
     }
 }
 
@@ -1217,11 +1218,34 @@ function pushCloudDB() {
     });
 }
 
+// —— 手动保存：上传云端 + 本地备份 ——
+function manualSave() {
+    if (!cloud.ready) {
+        showToast('⚠️ 云端未连接，无法保存', 'warning');
+        return;
+    }
+    setCloudStatus('loading', '正在保存到云端…');
+    
+    // 先保存到云端
+    pushCloudDB().then(success => {
+        if (success) {
+            // 云端保存成功后，本地备份
+            try {
+                if (window.localBackup && localBackup.dirHandle) {
+                    localBackup.save();
+                }
+            } catch (e) {}
+            showToast('✅ 保存成功，已上传云端并备份', 'success');
+        }
+    }).catch(err => {
+        showToast('❌ 保存失败：' + err.message, 'error');
+    });
+}
+
 function scheduleCloudSave() {
     if (!cloud.ready) return;
     cloud.pending = true;
-    if (cloud.saveTimer) clearTimeout(cloud.saveTimer);
-    cloud.saveTimer = setTimeout(pushCloudDB, 400);
+    setCloudStatus('pending', '有未保存的修改，点击「保存」按钮上传');
 }
 
 // —— 用云端数据替换本地并刷新界面 ——
