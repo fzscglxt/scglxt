@@ -671,17 +671,14 @@
         <div class="page" id="page-weekly-report">
             <div class="topbar">
                 <div><h1>📅 生产周报</h1></div>
-                <div class="topbar-actions">
+                <div class="topbar-actions" style="display:flex;align-items:center;gap:6px;">
+                    <input type="date" id="wr-date-start" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
+                    <span style="color:var(--text-tertiary);font-size:11px;">至</span>
+                    <input type="date" id="wr-date-end" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
+                    <button class="btn btn-sm btn-primary" style="height:28px;padding:0 8px;font-size:11px;line-height:26px;" onclick="renderWeeklyReport()">查看</button>
                     <button class="btn btn-outline" onclick="exportWeeklyReportCSV()">📥 导出Excel</button>
                 </div>
             </div>
-            <div class="panel"><div class="panel-body">
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                    <label style="font-size:13px;color:var(--text-secondary);">选择周：</label>
-                    <input type="week" id="wr-week-picker" style="height:30px;padding:0 8px;border:1px solid #cfd3d7;border-radius:4px;">
-                    <button class="btn btn-sm btn-primary" onclick="renderWeeklyReport()">查看</button>
-                </div>
-            </div></div>
             <div class="chart-grid">
                 <div class="panel"><div class="panel-header"><span class="panel-title">📊 各车间产量对比</span></div><div class="panel-body"><div class="chart-container" style="height:280px;"><canvas id="wr-chart-output"></canvas></div></div></div>
                 <div class="panel"><div class="panel-header"><span class="panel-title">📈 各车间合格率对比</span></div><div class="panel-body"><div class="chart-container" style="height:280px;"><canvas id="wr-chart-quality"></canvas></div></div></div>
@@ -693,17 +690,14 @@
         <div class="page" id="page-monthly-report">
             <div class="topbar">
                 <div><h1>📆 生产月报</h1></div>
-                <div class="topbar-actions">
+                <div class="topbar-actions" style="display:flex;align-items:center;gap:6px;">
+                    <input type="date" id="mr-date-start" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
+                    <span style="color:var(--text-tertiary);font-size:11px;">至</span>
+                    <input type="date" id="mr-date-end" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
+                    <button class="btn btn-sm btn-primary" style="height:28px;padding:0 8px;font-size:11px;line-height:26px;" onclick="renderMonthlyReport()">查看</button>
                     <button class="btn btn-outline" onclick="exportMonthlyReportCSV()">📥 导出Excel</button>
                 </div>
             </div>
-            <div class="panel"><div class="panel-body">
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                    <label style="font-size:13px;color:var(--text-secondary);">选择月份：</label>
-                    <input type="month" id="mr-month-picker" style="height:30px;padding:0 8px;border:1px solid #cfd3d7;border-radius:4px;">
-                    <button class="btn btn-sm btn-primary" onclick="renderMonthlyReport()">查看</button>
-                </div>
-            </div></div>
             <div class="chart-grid">
                 <div class="panel"><div class="panel-header"><span class="panel-title">📊 各车间产量对比</span></div><div class="panel-body"><div class="chart-container" style="height:280px;"><canvas id="mr-chart-output"></canvas></div></div></div>
                 <div class="panel"><div class="panel-header"><span class="panel-title">📈 各车间合格率对比</span></div><div class="panel-body"><div class="chart-container" style="height:280px;"><canvas id="mr-chart-quality"></canvas></div></div></div>
@@ -4129,15 +4123,16 @@ let wrChartOutput = null, wrChartQuality = null;
 let mrChartOutput = null, mrChartQuality = null;
 
 function renderWeeklyReport() {
-    const weekStr = document.getElementById('wr-week-picker').value;
-    if (!weekStr) {
+    let start = document.getElementById('wr-date-start').value;
+    let end = document.getElementById('wr-date-end').value;
+    if (!start || !end) {
         const today = new Date();
-        const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
-        const weekNum = Math.ceil((((today - firstDayOfYear) / 86400000) + firstDayOfYear.getDay() + 1) / 7);
-        document.getElementById('wr-week-picker').value = `${today.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
-        return renderWeeklyReport();
+        const weekAgo = new Date(today.getTime() - 6 * 86400000);
+        start = weekAgo.toISOString().slice(0, 10);
+        end = today.toISOString().slice(0, 10);
+        document.getElementById('wr-date-start').value = start;
+        document.getElementById('wr-date-end').value = end;
     }
-    const { start, end } = getISOWeekDateRange(weekStr);
     const ws = {
         assembly: sumWorkshopRange(DB.assembly, start, end),
         injection: sumWorkshopRange(DB.injection, start, end),
@@ -4212,15 +4207,18 @@ function renderWeeklyReport() {
 }
 
 function renderMonthlyReport() {
-    const monthStr = document.getElementById('mr-month-picker').value;
-    if (!monthStr) {
+    let start = document.getElementById('mr-date-start').value;
+    let end = document.getElementById('mr-date-end').value;
+    if (!start || !end) {
+        // 默认本月
         const today = new Date();
-        document.getElementById('mr-month-picker').value = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
-        return renderMonthlyReport();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        start = firstDay.toISOString().slice(0, 10);
+        end = lastDay.toISOString().slice(0, 10);
+        document.getElementById('mr-date-start').value = start;
+        document.getElementById('mr-date-end').value = end;
     }
-    const start = `${monthStr}-01`;
-    const endDate = new Date(Number(monthStr.split('-')[0]), Number(monthStr.split('-')[1]), 0);
-    const end = endDate.toISOString().slice(0, 10);
     const ws = {
         assembly: sumWorkshopRange(DB.assembly, start, end),
         injection: sumWorkshopRange(DB.injection, start, end),
@@ -4292,41 +4290,39 @@ function renderMonthlyReport() {
 }
 
 function exportWeeklyReportCSV() {
-    const weekStr = document.getElementById('wr-week-picker').value;
-    if (!weekStr) return alert('请先选择周');
-    const { start, end } = getISOWeekDateRange(weekStr);
+    const start = document.getElementById('wr-date-start').value;
+    const end = document.getElementById('wr-date-end').value;
+    if (!start || !end) return alert('请先选择时间范围');
     const ws = {
         assembly: sumWorkshopRange(DB.assembly, start, end),
         injection: sumWorkshopRange(DB.injection, start, end),
         silicone: sumWorkshopRange(DB.silicone, start, end)
     };
     const names = { assembly: '装配车间', injection: '注塑车间', silicone: '硅胶车间' };
-    let csv = `生产周报（${weekStr}：${start} 至 ${end}）\n`;
+    let csv = `生产周报（${start} 至 ${end}）\n`;
     csv += '车间,计划数量,生产数量,合格数量,不良数量,计划达成率(%),合格率(%)\n';
     ['assembly','injection','silicone'].forEach(k => {
         csv += `${names[k]},${ws[k].plan},${ws[k].prod},${ws[k].pass},${ws[k].defect},${ws[k].planRate},${ws[k].passRate}\n`;
     });
-    download(`生产周报_${weekStr}.csv`, csv);
+    download(`生产周报_${start}_${end}.csv`, csv);
 }
 
 function exportMonthlyReportCSV() {
-    const monthStr = document.getElementById('mr-month-picker').value;
-    if (!monthStr) return alert('请先选择月份');
-    const start = `${monthStr}-01`;
-    const endDate = new Date(Number(monthStr.split('-')[0]), Number(monthStr.split('-')[1]), 0);
-    const end = endDate.toISOString().slice(0, 10);
+    const start = document.getElementById('mr-date-start').value;
+    const end = document.getElementById('mr-date-end').value;
+    if (!start || !end) return alert('请先选择时间范围');
     const ws = {
         assembly: sumWorkshopRange(DB.assembly, start, end),
         injection: sumWorkshopRange(DB.injection, start, end),
         silicone: sumWorkshopRange(DB.silicone, start, end)
     };
     const names = { assembly: '装配车间', injection: '注塑车间', silicone: '硅胶车间' };
-    let csv = `生产月报（${monthStr}）\n`;
+    let csv = `生产月报（${start} 至 ${end}）\n`;
     csv += '车间,计划数量,生产数量,合格数量,不良数量,计划达成率(%),合格率(%)\n';
     ['assembly','injection','silicone'].forEach(k => {
         csv += `${names[k]},${ws[k].plan},${ws[k].prod},${ws[k].pass},${ws[k].defect},${ws[k].planRate},${ws[k].passRate}\n`;
     });
-    download(`生产月报_${monthStr}.csv`, csv);
+    download(`生产月报_${start}_${end}.csv`, csv);
 }
 
 function renderAnalysisPage() {
