@@ -4101,7 +4101,6 @@ function renderProductSummaryTable(tableId, start, end, filterPassId, filterPlan
     const productMap = {};
     const workshops = wsFilter === "all" ? ["assembly","injection","silicone"] : [wsFilter];
     workshops.forEach(wsKey => {
-    workshops.forEach(wsKey => {
         (DB[wsKey] || []).forEach(r => {
             const qad = String(r.qadNo || '').trim();
             const name = String(r.productName || '').trim();
