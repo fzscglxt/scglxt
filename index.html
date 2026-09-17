@@ -323,7 +323,6 @@
             <div class="nav-section">分析与系统</div>
             <div class="nav-item" data-page="anomaly"><span class="icon">🚨</span><span>异常记录</span></div>
             <div class="nav-item" data-page="analysis"><span class="icon">📈</span><span>统计分析</span></div>
-            <div class="nav-item" data-page="weekly-report"><span class="icon">📅</span><span>周报</span></div>
             <div class="nav-item" data-page="monthly-report"><span class="icon">📆</span><span>月报</span></div>
             <div class="nav-item" data-page="gantt"><span class="icon">📋</span><span>甘特图</span></div>
             <div class="nav-item" data-page="products"><span class="icon">📦</span><span>产品信息</span></div>
@@ -667,30 +666,6 @@
             </div></div>
         </div>
 
-        <!-- ============ 周报 ============ -->
-        <div class="page" id="page-weekly-report">
-            <div class="topbar">
-                <div><h1>📅 生产周报</h1></div>
-                <div class="topbar-actions" style="display:flex;align-items:center;gap:6px;">
-                    <input type="date" id="wr-date-start" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
-                    <span style="color:var(--text-tertiary);font-size:11px;">至</span>
-                    <input type="date" id="wr-date-end" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
-                    <select id="wr-filter-pass" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:130px;" onchange="renderWeeklyReport()">
-                        <option value="">全部合格率</option>
-                        <option value="low">合格率&lt;98%</option>
-                    </select>
-                    <select id="wr-filter-plan" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:140px;" onchange="renderWeeklyReport()">
-                        <option value="">全部计划达成率</option>
-                        <option value="low">计划达成率&lt;95%</option>
-                    </select>
-                    <button class="btn btn-sm btn-primary" style="height:28px;padding:0 8px;font-size:11px;line-height:26px;" onclick="renderWeeklyReport()">查看</button>
-                    <button class="btn btn-outline" onclick="exportWeeklyReportCSV()">📥 导出Excel</button>
-                </div>
-            </div>
-
-            <div class="panel"><div class="panel-header"><span class="panel-title">📋 车间汇总</span></div><div class="panel-body"><div class="table-wrap"><table id="wr-summary-table"></table></div></div></div>
-            <div class="panel"><div class="panel-header"><span class="panel-title">📦 产品汇总</span></div><div class="panel-body"><div class="table-wrap"><table id="wr-product-table"></table></div></div></div>
-        </div>
 
         <!-- ============ 月报 ============ -->
         <div class="page" id="page-monthly-report">
@@ -1875,7 +1850,6 @@ function navigateTo(page) {
         silicone: renderSiliconePage,
         anomaly: renderAnomalyPage,
         analysis: renderAnalysisPage,
-        'weekly-report': renderWeeklyReport,
         'monthly-report': renderMonthlyReport,
         gantt: renderGanttPage,
         products: renderProductPage, // 同时初始化两个Tab结构 + 分类选项
@@ -4197,64 +4171,6 @@ function renderProductSummaryTable(tableId, start, end, filterPassId, filterPlan
 let wrChartOutput = null, wrChartQuality = null;
 let mrChartOutput = null, mrChartQuality = null;
 
-function renderWeeklyReport() {
-    let start = document.getElementById('wr-date-start').value;
-    let end = document.getElementById('wr-date-end').value;
-    if (!start || !end) {
-        const today = new Date();
-        const weekAgo = new Date(today.getTime() - 6 * 86400000);
-        start = weekAgo.toISOString().slice(0, 10);
-        end = today.toISOString().slice(0, 10);
-        document.getElementById('wr-date-start').value = start;
-        document.getElementById('wr-date-end').value = end;
-    }
-    const ws = {
-        assembly: sumWorkshopRange(DB.assembly, start, end),
-        injection: sumWorkshopRange(DB.injection, start, end),
-        silicone: sumWorkshopRange(DB.silicone, start, end)
-    };
-    const names = { assembly: '装配车间', injection: '注塑车间', silicone: '硅胶车间' };
-    const colors = { assembly: '#1a73e8', injection: '#ea4335', silicone: '#fbbc04' };
-
-    // 表格
-    const total = {
-        plan: ws.assembly.plan + ws.injection.plan + ws.silicone.plan,
-        prod: ws.assembly.prod + ws.injection.prod + ws.silicone.prod,
-        pass: ws.assembly.pass + ws.injection.pass + ws.silicone.pass,
-        defect: ws.assembly.defect + ws.injection.defect + ws.silicone.defect
-    };
-    total.planRate = total.plan > 0 ? +(total.prod / total.plan * 100).toFixed(2) : 100;
-    total.passRate = total.prod > 0 ? +(total.pass / total.prod * 100).toFixed(2) : 0;
-
-    document.getElementById('wr-summary-table').innerHTML = `
-        <thead><tr><th>车间</th><th>计划数量</th><th>生产数量</th><th>合格数量</th><th>不良数量</th><th>计划达成率</th><th>合格率</th></tr></thead>
-        <tbody>
-            ${['assembly','injection','silicone'].map(k => `
-                <tr>
-                    <td><b>${names[k]}</b></td>
-                    <td>${ws[k].plan.toLocaleString()}</td>
-                    <td>${ws[k].prod.toLocaleString()}</td>
-                    <td>${ws[k].pass.toLocaleString()}</td>
-                    <td>${ws[k].defect.toLocaleString()}</td>
-                    <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${ws[k].planRate>=95?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${ws[k].planRate}%</span></td>
-                    <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${ws[k].passRate>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${ws[k].passRate}%</span></td>
-                </tr>
-            `).join('')}
-            <tr style="background:#f8f9fa;font-weight:700;">
-                <td>合计</td>
-                <td>${total.plan.toLocaleString()}</td>
-                <td>${total.prod.toLocaleString()}</td>
-                <td>${total.pass.toLocaleString()}</td>
-                <td>${total.defect.toLocaleString()}</td>
-                <td>${total.planRate}%</td>
-                <td>${total.passRate}%</td>
-            </tr>
-        </tbody>
-    `;
-
-    // 产品汇总表格
-    renderProductSummaryTable('wr-product-table', start, end, 'wr-filter-pass', 'wr-filter-plan');
-}
 
 function renderMonthlyReport() {
     let start = document.getElementById('mr-date-start').value;
@@ -4315,23 +4231,6 @@ function renderMonthlyReport() {
     renderProductSummaryTable('mr-product-table', start, end, 'mr-filter-pass', 'mr-filter-plan');
 }
 
-function exportWeeklyReportCSV() {
-    const start = document.getElementById('wr-date-start').value;
-    const end = document.getElementById('wr-date-end').value;
-    if (!start || !end) return alert('请先选择时间范围');
-    const ws = {
-        assembly: sumWorkshopRange(DB.assembly, start, end),
-        injection: sumWorkshopRange(DB.injection, start, end),
-        silicone: sumWorkshopRange(DB.silicone, start, end)
-    };
-    const names = { assembly: '装配车间', injection: '注塑车间', silicone: '硅胶车间' };
-    let csv = `生产周报（${start} 至 ${end}）\n`;
-    csv += '车间,计划数量,生产数量,合格数量,不良数量,计划达成率(%),合格率(%)\n';
-    ['assembly','injection','silicone'].forEach(k => {
-        csv += `${names[k]},${ws[k].plan},${ws[k].prod},${ws[k].pass},${ws[k].defect},${ws[k].planRate},${ws[k].passRate}\n`;
-    });
-    download(`生产周报_${start}_${end}.csv`, csv);
-}
 
 function exportMonthlyReportCSV() {
     const start = document.getElementById('mr-date-start').value;
