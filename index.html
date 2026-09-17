@@ -679,10 +679,7 @@
                     <button class="btn btn-outline" onclick="exportWeeklyReportCSV()">📥 导出Excel</button>
                 </div>
             </div>
-            <div class="chart-grid">
-                <div class="panel"><div class="panel-header"><span class="panel-title">📊 各车间产量对比</span></div><div class="panel-body"><div class="chart-container" style="height:280px;"><canvas id="wr-chart-output"></canvas></div></div></div>
-                <div class="panel"><div class="panel-header"><span class="panel-title">📈 各车间合格率对比</span></div><div class="panel-body"><div class="chart-container" style="height:280px;"><canvas id="wr-chart-quality"></canvas></div></div></div>
-            </div>
+
             <div class="panel"><div class="panel-header"><span class="panel-title">📋 周报汇总数据</span></div><div class="panel-body"><div class="table-wrap"><table id="wr-summary-table"></table></div></div></div>
         </div>
 
@@ -698,10 +695,7 @@
                     <button class="btn btn-outline" onclick="exportMonthlyReportCSV()">📥 导出Excel</button>
                 </div>
             </div>
-            <div class="chart-grid">
-                <div class="panel"><div class="panel-header"><span class="panel-title">📊 各车间产量对比</span></div><div class="panel-body"><div class="chart-container" style="height:280px;"><canvas id="mr-chart-output"></canvas></div></div></div>
-                <div class="panel"><div class="panel-header"><span class="panel-title">📈 各车间合格率对比</span></div><div class="panel-body"><div class="chart-container" style="height:280px;"><canvas id="mr-chart-quality"></canvas></div></div></div>
-            </div>
+
             <div class="panel"><div class="panel-header"><span class="panel-title">📋 月报汇总数据</span></div><div class="panel-body"><div class="table-wrap"><table id="mr-summary-table"></table></div></div></div>
         </div>
 
@@ -4177,33 +4171,7 @@ function renderWeeklyReport() {
         </tbody>
     `;
 
-    // 图表
-    if (typeof Chart !== 'undefined') {
-        if (wrChartOutput) wrChartOutput.destroy();
-        if (wrChartQuality) wrChartQuality.destroy();
-        wrChartOutput = new Chart(document.getElementById('wr-chart-output'), {
-            type: 'bar',
-            data: {
-                labels: ['装配车间','注塑车间','硅胶车间'],
-                datasets: [
-                    { label: '计划数量', data: [ws.assembly.plan, ws.injection.plan, ws.silicone.plan], backgroundColor: 'rgba(26,115,232,0.5)' },
-                    { label: '生产数量', data: [ws.assembly.prod, ws.injection.prod, ws.silicone.prod], backgroundColor: 'rgba(52,168,83,0.7)' }
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-        wrChartQuality = new Chart(document.getElementById('wr-chart-quality'), {
-            type: 'bar',
-            data: {
-                labels: ['装配车间','注塑车间','硅胶车间'],
-                datasets: [
-                    { label: '合格率(%)', data: [ws.assembly.passRate, ws.injection.passRate, ws.silicone.passRate], backgroundColor: 'rgba(52,168,83,0.7)' },
-                    { label: '计划达成率(%)', data: [ws.assembly.planRate, ws.injection.planRate, ws.silicone.planRate], backgroundColor: 'rgba(26,115,232,0.5)' }
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } } }
-        });
-    }
+
 }
 
 function renderMonthlyReport() {
@@ -4261,32 +4229,7 @@ function renderMonthlyReport() {
         </tbody>
     `;
 
-    if (typeof Chart !== 'undefined') {
-        if (mrChartOutput) mrChartOutput.destroy();
-        if (mrChartQuality) mrChartQuality.destroy();
-        mrChartOutput = new Chart(document.getElementById('mr-chart-output'), {
-            type: 'bar',
-            data: {
-                labels: ['装配车间','注塑车间','硅胶车间'],
-                datasets: [
-                    { label: '计划数量', data: [ws.assembly.plan, ws.injection.plan, ws.silicone.plan], backgroundColor: 'rgba(26,115,232,0.5)' },
-                    { label: '生产数量', data: [ws.assembly.prod, ws.injection.prod, ws.silicone.prod], backgroundColor: 'rgba(52,168,83,0.7)' }
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-        mrChartQuality = new Chart(document.getElementById('mr-chart-quality'), {
-            type: 'bar',
-            data: {
-                labels: ['装配车间','注塑车间','硅胶车间'],
-                datasets: [
-                    { label: '合格率(%)', data: [ws.assembly.passRate, ws.injection.passRate, ws.silicone.passRate], backgroundColor: 'rgba(52,168,83,0.7)' },
-                    { label: '计划达成率(%)', data: [ws.assembly.planRate, ws.injection.planRate, ws.silicone.planRate], backgroundColor: 'rgba(26,115,232,0.5)' }
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } } }
-        });
-    }
+
 }
 
 function exportWeeklyReportCSV() {
