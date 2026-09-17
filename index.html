@@ -644,26 +644,6 @@
                 <div class="panel"><div class="panel-header"><span class="panel-title">📈 各车间平均合格率（周）</span></div><div class="panel-body"><div class="chart-container" style="height:300px;"><canvas id="ana-chart-week-pass"></canvas></div></div></div>
                 <div class="panel"><div class="panel-header"><span class="panel-title">📈 各车间平均计划达成率（周）</span></div><div class="panel-body"><div class="chart-container" style="height:300px;"><canvas id="ana-chart-week-plan"></canvas></div></div></div>
             </div>
-            <!-- 需求：各车间各产品统计汇总（透视矩阵：产品×时间，按周/按月，单元格颜色标注达标情况） -->
-            <div class="panel"><div class="panel-header"><span class="panel-title">📦 各车间各产品统计汇总</span>
-                <div style="display:flex;gap:6px;align-items:center;">
-                    <select id="ana-prod-workshop" onchange="renderAnaProductSummary()" style="width:auto;min-width:140px;">
-                        <option value="all">全部车间</option><option value="assembly">装配车间</option><option value="injection">注塑车间</option><option value="silicone">硅胶车间</option>
-                    </select>
-                    <select id="ana-prod-granularity" onchange="renderAnaProductSummary()" style="width:auto;min-width:90px;">
-                        <option value="month">按 月</option><option value="week">按 周</option>
-                    </select>
-                </div>
-            </div><div class="panel-body">
-                <div class="tree-summary-bar">
-                    <span class="s-item">口径说明：<b>达成率=生产/计划</b></span>
-                    <span class="s-item"><b>合格率=合格/生产</b></span>
-                    <span class="s-item"><b>不良=生产-合格</b></span>
-                    <span class="s-item">色块：<span class="rate-dot" style="background:#e6f4ea;color:#137333;">达标</span> <span class="rate-dot" style="background:#fef7e0;color:#b06000;">预警</span> <span class="rate-dot" style="background:#fce8e6;color:#c5221f;">未达标</span></span>
-                    <span class="s-item" id="ana-prod-summary-hint"></span>
-                </div>
-                <div class="table-wrap" style="max-height:560px;overflow:auto;"><table id="ana-prod-summary-table"></table></div>
-            </div></div>
         </div>
 
 
