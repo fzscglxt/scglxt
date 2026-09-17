@@ -652,6 +652,12 @@
             <div class="topbar">
                 <div><h1>📆 生产月报</h1></div>
                 <div class="topbar-actions" style="display:flex;align-items:center;gap:6px;">
+                    <select id="mr-workshop" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:110px;" onchange="renderMonthlyReport()">
+                        <option value="all">全部车间</option>
+                        <option value="assembly">装配车间</option>
+                        <option value="injection">注塑车间</option>
+                        <option value="silicone">硅胶车间</option>
+                    </select>
                     <input type="date" id="mr-date-start" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
                     <span style="color:var(--text-tertiary);font-size:11px;">至</span>
                     <input type="date" id="mr-date-end" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
@@ -4086,15 +4092,15 @@ function sumWorkshopRange(workshopData, start, end) {
 }
 
 // 产品汇总表格：按QAD号+产品名称聚合
-function renderProductSummaryTable(tableId, start, end, filterPassId, filterPlanId) {
+function renderProductSummaryTable(tableId, start, end, filterPassId, filterPlanId, workshopId) {
     const passFilter = document.getElementById(filterPassId).value;
     const planFilter = document.getElementById(filterPlanId).value;
+    const wsFilter = workshopId ? document.getElementById(workshopId).value : "all";
 
-    // 聚合所有车间记录
+    // 聚合车间记录
     const productMap = {};
-    ['assembly','injection','silicone'].forEach(wsKey => {
-        (DB[wsKey] || []).forEach(r => {
-            const d = r.date;
+    const workshops = wsFilter === "all" ? ["assembly","injection","silicone"] : [wsFilter];
+    workshops.forEach(wsKey => {
             if (d < start || d > end) return;
             const qad = String(r.qadNo || '').trim();
             const name = String(r.productName || '').trim();
@@ -4165,26 +4171,29 @@ function renderMonthlyReport() {
         document.getElementById('mr-date-start').value = start;
         document.getElementById('mr-date-end').value = end;
     }
+    const workshopFilter = document.getElementById('mr-workshop').value;
     const ws = {
         assembly: sumWorkshopRange(DB.assembly, start, end),
         injection: sumWorkshopRange(DB.injection, start, end),
         silicone: sumWorkshopRange(DB.silicone, start, end)
     };
     const names = { assembly: '装配车间', injection: '注塑车间', silicone: '硅胶车间' };
+    const showKeys = workshopFilter === 'all' ? ['assembly','injection','silicone'] : [workshopFilter];
 
-    const total = {
-        plan: ws.assembly.plan + ws.injection.plan + ws.silicone.plan,
-        prod: ws.assembly.prod + ws.injection.prod + ws.silicone.prod,
-        pass: ws.assembly.pass + ws.injection.pass + ws.silicone.pass,
-        defect: ws.assembly.defect + ws.injection.defect + ws.silicone.defect
-    };
+    let total = { plan: 0, prod: 0, pass: 0, defect: 0, planRate: 100, passRate: 0 };
+    showKeys.forEach(k => {
+        total.plan += ws[k].plan;
+        total.prod += ws[k].prod;
+        total.pass += ws[k].pass;
+        total.defect += ws[k].defect;
+    });
     total.planRate = total.plan > 0 ? +(total.prod / total.plan * 100).toFixed(2) : 100;
     total.passRate = total.prod > 0 ? +(total.pass / total.prod * 100).toFixed(2) : 0;
 
     document.getElementById('mr-summary-table').innerHTML = `
         <thead><tr><th>车间</th><th>计划数量</th><th>生产数量</th><th>合格数量</th><th>不良数量</th><th>计划达成率</th><th>合格率</th></tr></thead>
         <tbody>
-            ${['assembly','injection','silicone'].map(k => `
+            ${showKeys.map(k => `
                 <tr>
                     <td><b>${names[k]}</b></td>
                     <td>${ws[k].plan.toLocaleString()}</td>
@@ -4201,14 +4210,14 @@ function renderMonthlyReport() {
                 <td>${total.prod.toLocaleString()}</td>
                 <td>${total.pass.toLocaleString()}</td>
                 <td>${total.defect.toLocaleString()}</td>
-                <td>${total.planRate}%</td>
-                <td>${total.passRate}%</td>
+                <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${total.planRate>=95?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${total.planRate}%</span></td>
+                <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${total.passRate>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${total.passRate}%</span></td>
             </tr>
         </tbody>
     `;
 
     // 产品汇总表格
-    renderProductSummaryTable('mr-product-table', start, end, 'mr-filter-pass', 'mr-filter-plan');
+    renderProductSummaryTable('mr-product-table', start, end, 'mr-filter-pass', 'mr-filter-plan', 'mr-workshop');
 }
 
 
