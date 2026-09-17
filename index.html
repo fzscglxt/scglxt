@@ -323,6 +323,8 @@
             <div class="nav-section">分析与系统</div>
             <div class="nav-item" data-page="anomaly"><span class="icon">🚨</span><span>异常记录</span></div>
             <div class="nav-item" data-page="analysis"><span class="icon">📈</span><span>统计分析</span></div>
+            <div class="nav-item" data-page="weekly-report"><span class="icon">📅</span><span>周报</span></div>
+            <div class="nav-item" data-page="monthly-report"><span class="icon">📆</span><span>月报</span></div>
             <div class="nav-item" data-page="gantt"><span class="icon">📋</span><span>甘特图</span></div>
             <div class="nav-item" data-page="products"><span class="icon">📦</span><span>产品信息</span></div>
             <div class="nav-item admin-only" data-page="system" style="display:none"><span class="icon">⚙️</span><span>系统管理</span></div>
@@ -663,6 +665,50 @@
                 </div>
                 <div class="table-wrap" style="max-height:560px;overflow:auto;"><table id="ana-prod-summary-table"></table></div>
             </div></div>
+        </div>
+
+        <!-- ============ 周报 ============ -->
+        <div class="page" id="page-weekly-report">
+            <div class="topbar">
+                <div><h1>📅 生产周报</h1></div>
+                <div class="topbar-actions">
+                    <button class="btn btn-outline" onclick="exportWeeklyReportCSV()">📥 导出Excel</button>
+                </div>
+            </div>
+            <div class="panel"><div class="panel-body">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <label style="font-size:13px;color:var(--text-secondary);">选择周：</label>
+                    <input type="week" id="wr-week-picker" style="height:30px;padding:0 8px;border:1px solid #cfd3d7;border-radius:4px;">
+                    <button class="btn btn-sm btn-primary" onclick="renderWeeklyReport()">查看</button>
+                </div>
+            </div></div>
+            <div class="chart-grid">
+                <div class="panel"><div class="panel-header"><span class="panel-title">📊 各车间产量对比</span></div><div class="panel-body"><div class="chart-container" style="height:280px;"><canvas id="wr-chart-output"></canvas></div></div></div>
+                <div class="panel"><div class="panel-header"><span class="panel-title">📈 各车间合格率对比</span></div><div class="panel-body"><div class="chart-container" style="height:280px;"><canvas id="wr-chart-quality"></canvas></div></div></div>
+            </div>
+            <div class="panel"><div class="panel-header"><span class="panel-title">📋 周报汇总数据</span></div><div class="panel-body"><div class="table-wrap"><table id="wr-summary-table"></table></div></div></div>
+        </div>
+
+        <!-- ============ 月报 ============ -->
+        <div class="page" id="page-monthly-report">
+            <div class="topbar">
+                <div><h1>📆 生产月报</h1></div>
+                <div class="topbar-actions">
+                    <button class="btn btn-outline" onclick="exportMonthlyReportCSV()">📥 导出Excel</button>
+                </div>
+            </div>
+            <div class="panel"><div class="panel-body">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <label style="font-size:13px;color:var(--text-secondary);">选择月份：</label>
+                    <input type="month" id="mr-month-picker" style="height:30px;padding:0 8px;border:1px solid #cfd3d7;border-radius:4px;">
+                    <button class="btn btn-sm btn-primary" onclick="renderMonthlyReport()">查看</button>
+                </div>
+            </div></div>
+            <div class="chart-grid">
+                <div class="panel"><div class="panel-header"><span class="panel-title">📊 各车间产量对比</span></div><div class="panel-body"><div class="chart-container" style="height:280px;"><canvas id="mr-chart-output"></canvas></div></div></div>
+                <div class="panel"><div class="panel-header"><span class="panel-title">📈 各车间合格率对比</span></div><div class="panel-body"><div class="chart-container" style="height:280px;"><canvas id="mr-chart-quality"></canvas></div></div></div>
+            </div>
+            <div class="panel"><div class="panel-header"><span class="panel-title">📋 月报汇总数据</span></div><div class="panel-body"><div class="table-wrap"><table id="mr-summary-table"></table></div></div></div>
         </div>
 
         <!-- ============ 9B. 甘特图 ============ -->
@@ -1823,6 +1869,8 @@ function navigateTo(page) {
         silicone: renderSiliconePage,
         anomaly: renderAnomalyPage,
         analysis: renderAnalysisPage,
+        'weekly-report': renderWeeklyReport,
+        'monthly-report': renderMonthlyReport,
         gantt: renderGanttPage,
         products: renderProductPage, // 同时初始化两个Tab结构 + 分类选项
         system: () => { switchSystemTab('users'); renderUserTable(); }
@@ -4041,6 +4089,244 @@ function switchAnalysisPeriod(p) {
     currentAnalysisPeriod = p;
     document.querySelectorAll('#analysis-period .period-tab').forEach(t => t.classList.toggle('active', t.dataset.period === p));
     renderAnalysisPage();
+}
+
+// ===== 周报月报 =====
+function getISOWeekDateRange(weekStr) {
+    // weekStr 格式: "2026-W37"
+    const [year, week] = weekStr.split('-W').map(Number);
+    const simple = new Date(year, 0, 1 + (week - 1) * 7);
+    const dow = simple.getDay();
+    const ISOWeekStart = new Date(simple);
+    if (dow <= 4) {
+        ISOWeekStart.setDate(simple.getDate() - simple.getDay() + 1);
+    } else {
+        ISOWeekStart.setDate(simple.getDate() + 7 - simple.getDay());
+    }
+    const ISOWeekEnd = new Date(ISOWeekStart);
+    ISOWeekEnd.setDate(ISOWeekStart.getDate() + 6);
+    const fmt = d => d.toISOString().slice(0, 10);
+    return { start: fmt(ISOWeekStart), end: fmt(ISOWeekEnd) };
+}
+
+function sumWorkshopRange(workshopData, start, end) {
+    let plan = 0, prod = 0, pass = 0;
+    workshopData.forEach(r => {
+        const d = r.date;
+        if (d >= start && d <= end) {
+            plan += +r.planQty || 0;
+            prod += +r.produceQty || 0;
+            pass += +r.passQty || 0;
+        }
+    });
+    const defect = prod - pass;
+    const planRate = plan > 0 ? +(prod / plan * 100).toFixed(2) : 100;
+    const passRate = prod > 0 ? +(pass / prod * 100).toFixed(2) : 0;
+    return { plan, prod, pass, defect, planRate, passRate };
+}
+
+let wrChartOutput = null, wrChartQuality = null;
+let mrChartOutput = null, mrChartQuality = null;
+
+function renderWeeklyReport() {
+    const weekStr = document.getElementById('wr-week-picker').value;
+    if (!weekStr) {
+        const today = new Date();
+        const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+        const weekNum = Math.ceil((((today - firstDayOfYear) / 86400000) + firstDayOfYear.getDay() + 1) / 7);
+        document.getElementById('wr-week-picker').value = `${today.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+        return renderWeeklyReport();
+    }
+    const { start, end } = getISOWeekDateRange(weekStr);
+    const ws = {
+        assembly: sumWorkshopRange(DB.assembly, start, end),
+        injection: sumWorkshopRange(DB.injection, start, end),
+        silicone: sumWorkshopRange(DB.silicone, start, end)
+    };
+    const names = { assembly: '装配车间', injection: '注塑车间', silicone: '硅胶车间' };
+    const colors = { assembly: '#1a73e8', injection: '#ea4335', silicone: '#fbbc04' };
+
+    // 表格
+    const total = {
+        plan: ws.assembly.plan + ws.injection.plan + ws.silicone.plan,
+        prod: ws.assembly.prod + ws.injection.prod + ws.silicone.prod,
+        pass: ws.assembly.pass + ws.injection.pass + ws.silicone.pass,
+        defect: ws.assembly.defect + ws.injection.defect + ws.silicone.defect
+    };
+    total.planRate = total.plan > 0 ? +(total.prod / total.plan * 100).toFixed(2) : 100;
+    total.passRate = total.prod > 0 ? +(total.pass / total.prod * 100).toFixed(2) : 0;
+
+    document.getElementById('wr-summary-table').innerHTML = `
+        <thead><tr><th>车间</th><th>计划数量</th><th>生产数量</th><th>合格数量</th><th>不良数量</th><th>计划达成率</th><th>合格率</th></tr></thead>
+        <tbody>
+            ${['assembly','injection','silicone'].map(k => `
+                <tr>
+                    <td><b>${names[k]}</b></td>
+                    <td>${ws[k].plan.toLocaleString()}</td>
+                    <td>${ws[k].prod.toLocaleString()}</td>
+                    <td>${ws[k].pass.toLocaleString()}</td>
+                    <td>${ws[k].defect.toLocaleString()}</td>
+                    <td style="color:${ws[k].planRate>=100?'#34a853':'#ea4335'};font-weight:600;">${ws[k].planRate}%</td>
+                    <td style="color:${ws[k].passRate>=98?'#34a853':'#ea4335'};font-weight:600;">${ws[k].passRate}%</td>
+                </tr>
+            `).join('')}
+            <tr style="background:#f8f9fa;font-weight:700;">
+                <td>合计</td>
+                <td>${total.plan.toLocaleString()}</td>
+                <td>${total.prod.toLocaleString()}</td>
+                <td>${total.pass.toLocaleString()}</td>
+                <td>${total.defect.toLocaleString()}</td>
+                <td>${total.planRate}%</td>
+                <td>${total.passRate}%</td>
+            </tr>
+        </tbody>
+    `;
+
+    // 图表
+    if (typeof Chart !== 'undefined') {
+        if (wrChartOutput) wrChartOutput.destroy();
+        if (wrChartQuality) wrChartQuality.destroy();
+        wrChartOutput = new Chart(document.getElementById('wr-chart-output'), {
+            type: 'bar',
+            data: {
+                labels: ['装配车间','注塑车间','硅胶车间'],
+                datasets: [
+                    { label: '计划数量', data: [ws.assembly.plan, ws.injection.plan, ws.silicone.plan], backgroundColor: 'rgba(26,115,232,0.5)' },
+                    { label: '生产数量', data: [ws.assembly.prod, ws.injection.prod, ws.silicone.prod], backgroundColor: 'rgba(52,168,83,0.7)' }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+        wrChartQuality = new Chart(document.getElementById('wr-chart-quality'), {
+            type: 'bar',
+            data: {
+                labels: ['装配车间','注塑车间','硅胶车间'],
+                datasets: [
+                    { label: '合格率(%)', data: [ws.assembly.passRate, ws.injection.passRate, ws.silicone.passRate], backgroundColor: 'rgba(52,168,83,0.7)' },
+                    { label: '计划达成率(%)', data: [ws.assembly.planRate, ws.injection.planRate, ws.silicone.planRate], backgroundColor: 'rgba(26,115,232,0.5)' }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } } }
+        });
+    }
+}
+
+function renderMonthlyReport() {
+    const monthStr = document.getElementById('mr-month-picker').value;
+    if (!monthStr) {
+        const today = new Date();
+        document.getElementById('mr-month-picker').value = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+        return renderMonthlyReport();
+    }
+    const start = `${monthStr}-01`;
+    const endDate = new Date(Number(monthStr.split('-')[0]), Number(monthStr.split('-')[1]), 0);
+    const end = endDate.toISOString().slice(0, 10);
+    const ws = {
+        assembly: sumWorkshopRange(DB.assembly, start, end),
+        injection: sumWorkshopRange(DB.injection, start, end),
+        silicone: sumWorkshopRange(DB.silicone, start, end)
+    };
+    const names = { assembly: '装配车间', injection: '注塑车间', silicone: '硅胶车间' };
+
+    const total = {
+        plan: ws.assembly.plan + ws.injection.plan + ws.silicone.plan,
+        prod: ws.assembly.prod + ws.injection.prod + ws.silicone.prod,
+        pass: ws.assembly.pass + ws.injection.pass + ws.silicone.pass,
+        defect: ws.assembly.defect + ws.injection.defect + ws.silicone.defect
+    };
+    total.planRate = total.plan > 0 ? +(total.prod / total.plan * 100).toFixed(2) : 100;
+    total.passRate = total.prod > 0 ? +(total.pass / total.prod * 100).toFixed(2) : 0;
+
+    document.getElementById('mr-summary-table').innerHTML = `
+        <thead><tr><th>车间</th><th>计划数量</th><th>生产数量</th><th>合格数量</th><th>不良数量</th><th>计划达成率</th><th>合格率</th></tr></thead>
+        <tbody>
+            ${['assembly','injection','silicone'].map(k => `
+                <tr>
+                    <td><b>${names[k]}</b></td>
+                    <td>${ws[k].plan.toLocaleString()}</td>
+                    <td>${ws[k].prod.toLocaleString()}</td>
+                    <td>${ws[k].pass.toLocaleString()}</td>
+                    <td>${ws[k].defect.toLocaleString()}</td>
+                    <td style="color:${ws[k].planRate>=100?'#34a853':'#ea4335'};font-weight:600;">${ws[k].planRate}%</td>
+                    <td style="color:${ws[k].passRate>=98?'#34a853':'#ea4335'};font-weight:600;">${ws[k].passRate}%</td>
+                </tr>
+            `).join('')}
+            <tr style="background:#f8f9fa;font-weight:700;">
+                <td>合计</td>
+                <td>${total.plan.toLocaleString()}</td>
+                <td>${total.prod.toLocaleString()}</td>
+                <td>${total.pass.toLocaleString()}</td>
+                <td>${total.defect.toLocaleString()}</td>
+                <td>${total.planRate}%</td>
+                <td>${total.passRate}%</td>
+            </tr>
+        </tbody>
+    `;
+
+    if (typeof Chart !== 'undefined') {
+        if (mrChartOutput) mrChartOutput.destroy();
+        if (mrChartQuality) mrChartQuality.destroy();
+        mrChartOutput = new Chart(document.getElementById('mr-chart-output'), {
+            type: 'bar',
+            data: {
+                labels: ['装配车间','注塑车间','硅胶车间'],
+                datasets: [
+                    { label: '计划数量', data: [ws.assembly.plan, ws.injection.plan, ws.silicone.plan], backgroundColor: 'rgba(26,115,232,0.5)' },
+                    { label: '生产数量', data: [ws.assembly.prod, ws.injection.prod, ws.silicone.prod], backgroundColor: 'rgba(52,168,83,0.7)' }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+        mrChartQuality = new Chart(document.getElementById('mr-chart-quality'), {
+            type: 'bar',
+            data: {
+                labels: ['装配车间','注塑车间','硅胶车间'],
+                datasets: [
+                    { label: '合格率(%)', data: [ws.assembly.passRate, ws.injection.passRate, ws.silicone.passRate], backgroundColor: 'rgba(52,168,83,0.7)' },
+                    { label: '计划达成率(%)', data: [ws.assembly.planRate, ws.injection.planRate, ws.silicone.planRate], backgroundColor: 'rgba(26,115,232,0.5)' }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } } }
+        });
+    }
+}
+
+function exportWeeklyReportCSV() {
+    const weekStr = document.getElementById('wr-week-picker').value;
+    if (!weekStr) return alert('请先选择周');
+    const { start, end } = getISOWeekDateRange(weekStr);
+    const ws = {
+        assembly: sumWorkshopRange(DB.assembly, start, end),
+        injection: sumWorkshopRange(DB.injection, start, end),
+        silicone: sumWorkshopRange(DB.silicone, start, end)
+    };
+    const names = { assembly: '装配车间', injection: '注塑车间', silicone: '硅胶车间' };
+    let csv = `生产周报（${weekStr}：${start} 至 ${end}）\n`;
+    csv += '车间,计划数量,生产数量,合格数量,不良数量,计划达成率(%),合格率(%)\n';
+    ['assembly','injection','silicone'].forEach(k => {
+        csv += `${names[k]},${ws[k].plan},${ws[k].prod},${ws[k].pass},${ws[k].defect},${ws[k].planRate},${ws[k].passRate}\n`;
+    });
+    download(`生产周报_${weekStr}.csv`, csv);
+}
+
+function exportMonthlyReportCSV() {
+    const monthStr = document.getElementById('mr-month-picker').value;
+    if (!monthStr) return alert('请先选择月份');
+    const start = `${monthStr}-01`;
+    const endDate = new Date(Number(monthStr.split('-')[0]), Number(monthStr.split('-')[1]), 0);
+    const end = endDate.toISOString().slice(0, 10);
+    const ws = {
+        assembly: sumWorkshopRange(DB.assembly, start, end),
+        injection: sumWorkshopRange(DB.injection, start, end),
+        silicone: sumWorkshopRange(DB.silicone, start, end)
+    };
+    const names = { assembly: '装配车间', injection: '注塑车间', silicone: '硅胶车间' };
+    let csv = `生产月报（${monthStr}）\n`;
+    csv += '车间,计划数量,生产数量,合格数量,不良数量,计划达成率(%),合格率(%)\n';
+    ['assembly','injection','silicone'].forEach(k => {
+        csv += `${names[k]},${ws[k].plan},${ws[k].prod},${ws[k].pass},${ws[k].defect},${ws[k].planRate},${ws[k].passRate}\n`;
+    });
+    download(`生产月报_${monthStr}.csv`, csv);
 }
 
 function renderAnalysisPage() {
