@@ -4187,7 +4187,7 @@ function renderProductSummaryTable(tableId, start, end, filterPassId, filterPlan
                     <td>${r.prod.toLocaleString()}</td>
                     <td>${r.pass.toLocaleString()}</td>
                     <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${r.passRate>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${r.passRate}%</span></td>
-                    <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${r.planRate>=95?'background:#e8f0fe;color:#1967d2;':'background:#fce8e6;color:#d93025;'}">${r.planRate}%</span></td>
+                    <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${r.planRate>=95?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${r.planRate}%</span></td>
                 </tr>
             `).join('')}
         </tbody>
@@ -4236,7 +4236,7 @@ function renderWeeklyReport() {
                     <td>${ws[k].prod.toLocaleString()}</td>
                     <td>${ws[k].pass.toLocaleString()}</td>
                     <td>${ws[k].defect.toLocaleString()}</td>
-                    <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${ws[k].planRate>=100?'background:#e8f0fe;color:#1967d2;':'background:#fce8e6;color:#d93025;'}">${ws[k].planRate}%</span></td>
+                    <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${ws[k].planRate>=95?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${ws[k].planRate}%</span></td>
                     <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${ws[k].passRate>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${ws[k].passRate}%</span></td>
                 </tr>
             `).join('')}
@@ -4295,7 +4295,7 @@ function renderMonthlyReport() {
                     <td>${ws[k].prod.toLocaleString()}</td>
                     <td>${ws[k].pass.toLocaleString()}</td>
                     <td>${ws[k].defect.toLocaleString()}</td>
-                    <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${ws[k].planRate>=100?'background:#e8f0fe;color:#1967d2;':'background:#fce8e6;color:#d93025;'}">${ws[k].planRate}%</span></td>
+                    <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${ws[k].planRate>=95?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${ws[k].planRate}%</span></td>
                     <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${ws[k].passRate>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${ws[k].passRate}%</span></td>
                 </tr>
             `).join('')}
