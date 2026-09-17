@@ -675,12 +675,21 @@
                     <input type="date" id="wr-date-start" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
                     <span style="color:var(--text-tertiary);font-size:11px;">至</span>
                     <input type="date" id="wr-date-end" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
+                    <select id="wr-filter-pass" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:130px;" onchange="renderWeeklyReport()">
+                        <option value="">全部合格率</option>
+                        <option value="low">合格率&lt;98%</option>
+                    </select>
+                    <select id="wr-filter-plan" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:140px;" onchange="renderWeeklyReport()">
+                        <option value="">全部计划达成率</option>
+                        <option value="low">计划达成率&lt;95%</option>
+                    </select>
                     <button class="btn btn-sm btn-primary" style="height:28px;padding:0 8px;font-size:11px;line-height:26px;" onclick="renderWeeklyReport()">查看</button>
                     <button class="btn btn-outline" onclick="exportWeeklyReportCSV()">📥 导出Excel</button>
                 </div>
             </div>
 
-            <div class="panel"><div class="panel-header"><span class="panel-title">📋 周报汇总数据</span></div><div class="panel-body"><div class="table-wrap"><table id="wr-summary-table"></table></div></div></div>
+            <div class="panel"><div class="panel-header"><span class="panel-title">📋 车间汇总</span></div><div class="panel-body"><div class="table-wrap"><table id="wr-summary-table"></table></div></div></div>
+            <div class="panel"><div class="panel-header"><span class="panel-title">📦 产品汇总</span></div><div class="panel-body"><div class="table-wrap"><table id="wr-product-table"></table></div></div></div>
         </div>
 
         <!-- ============ 月报 ============ -->
@@ -691,12 +700,21 @@
                     <input type="date" id="mr-date-start" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
                     <span style="color:var(--text-tertiary);font-size:11px;">至</span>
                     <input type="date" id="mr-date-end" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
+                    <select id="mr-filter-pass" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:130px;" onchange="renderMonthlyReport()">
+                        <option value="">全部合格率</option>
+                        <option value="low">合格率&lt;98%</option>
+                    </select>
+                    <select id="mr-filter-plan" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:140px;" onchange="renderMonthlyReport()">
+                        <option value="">全部计划达成率</option>
+                        <option value="low">计划达成率&lt;95%</option>
+                    </select>
                     <button class="btn btn-sm btn-primary" style="height:28px;padding:0 8px;font-size:11px;line-height:26px;" onclick="renderMonthlyReport()">查看</button>
                     <button class="btn btn-outline" onclick="exportMonthlyReportCSV()">📥 导出Excel</button>
                 </div>
             </div>
 
-            <div class="panel"><div class="panel-header"><span class="panel-title">📋 月报汇总数据</span></div><div class="panel-body"><div class="table-wrap"><table id="mr-summary-table"></table></div></div></div>
+            <div class="panel"><div class="panel-header"><span class="panel-title">📋 车间汇总</span></div><div class="panel-body"><div class="table-wrap"><table id="mr-summary-table"></table></div></div></div>
+            <div class="panel"><div class="panel-header"><span class="panel-title">📦 产品汇总</span></div><div class="panel-body"><div class="table-wrap"><table id="mr-product-table"></table></div></div></div>
         </div>
 
         <!-- ============ 9B. 甘特图 ============ -->
@@ -4113,6 +4131,69 @@ function sumWorkshopRange(workshopData, start, end) {
     return { plan, prod, pass, defect, planRate, passRate };
 }
 
+// 产品汇总表格：按QAD号+产品名称聚合
+function renderProductSummaryTable(tableId, start, end, filterPassId, filterPlanId) {
+    const passFilter = document.getElementById(filterPassId).value;
+    const planFilter = document.getElementById(filterPlanId).value;
+
+    // 聚合所有车间记录
+    const productMap = {};
+    ['assembly','injection','silicone'].forEach(wsKey => {
+        (DB[wsKey] || []).forEach(r => {
+            const d = r.date;
+            if (d < start || d > end) return;
+            const qad = String(r.qadNo || '').trim();
+            const name = String(r.productName || '').trim();
+            const key = qad + '|' + name;
+            if (!productMap[key]) {
+                productMap[key] = { qadNo: qad, productName: name, plan: 0, prod: 0, pass: 0 };
+            }
+            productMap[key].plan += +r.planQty || 0;
+            productMap[key].prod += +r.produceQty || 0;
+            productMap[key].pass += +r.passQty || 0;
+        });
+    });
+
+    // 计算比率并过滤
+    let rows = Object.values(productMap).map((p, i) => {
+        p.defect = p.prod - p.pass;
+        p.planRate = p.plan > 0 ? +(p.prod / p.plan * 100).toFixed(2) : 100;
+        p.passRate = p.prod > 0 ? +(p.pass / p.prod * 100).toFixed(2) : 0;
+        p.index = i + 1;
+        return p;
+    });
+
+    if (passFilter === 'low') rows = rows.filter(r => r.passRate < 98);
+    if (planFilter === 'low') rows = rows.filter(r => r.planRate < 95);
+
+    // 按生产数量降序
+    rows.sort((a, b) => b.prod - a.prod);
+
+    const table = document.getElementById(tableId);
+    if (rows.length === 0) {
+        table.innerHTML = '<tbody><tr><td style="text-align:center;color:#999;padding:20px;">暂无数据</td></tr></tbody>';
+        return;
+    }
+
+    table.innerHTML = `
+        <thead><tr><th>序号</th><th>QAD号</th><th>产品名称</th><th>计划数量</th><th>生产数量</th><th>合格数量</th><th>合格率</th><th>计划达成率</th></tr></thead>
+        <tbody>
+            ${rows.map((r, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${r.qadNo || '-'}</td>
+                    <td>${r.productName}</td>
+                    <td>${r.plan.toLocaleString()}</td>
+                    <td>${r.prod.toLocaleString()}</td>
+                    <td>${r.pass.toLocaleString()}</td>
+                    <td style="color:${r.passRate>=98?'#34a853':'#ea4335'};font-weight:600;">${r.passRate}%</td>
+                    <td style="color:${r.planRate>=95?'#1a73e8':'#ea4335'};font-weight:600;">${r.planRate}%</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    `;
+}
+
 let wrChartOutput = null, wrChartQuality = null;
 let mrChartOutput = null, mrChartQuality = null;
 
@@ -4171,7 +4252,8 @@ function renderWeeklyReport() {
         </tbody>
     `;
 
-
+    // 产品汇总表格
+    renderProductSummaryTable('wr-product-table', start, end, 'wr-filter-pass', 'wr-filter-plan');
 }
 
 function renderMonthlyReport() {
@@ -4229,7 +4311,8 @@ function renderMonthlyReport() {
         </tbody>
     `;
 
-
+    // 产品汇总表格
+    renderProductSummaryTable('mr-product-table', start, end, 'mr-filter-pass', 'mr-filter-plan');
 }
 
 function exportWeeklyReportCSV() {
