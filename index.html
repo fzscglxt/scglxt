@@ -4318,12 +4318,19 @@ function renderAnaDefectRanking() {
     const range = getAnalysisRange();
     const wss = wsSel === 'all' ? ['assembly', 'injection', 'silicone'] : [wsSel];
     const sum = {};
+    // 统计每个不良品下各产品的分布
+    const productDist = {}; // defectName -> {productName: count}
     wss.forEach(ws => {
         const cfg = WORKSHOP_CONFIG[ws];
         DB[ws].filter(r => r.date >= range.start && r.date <= range.end).forEach(r => {
             cfg.defectFields.forEach(f => {
                 const v = +r[f] || 0;
-                if (v > 0) sum[f] = (sum[f] || 0) + v;
+                if (v > 0) {
+                    sum[f] = (sum[f] || 0) + v;
+                    const pName = r.productName || '未知产品';
+                    if (!productDist[f]) productDist[f] = {};
+                    productDist[f][pName] = (productDist[f][pName] || 0) + v;
+                }
             });
         });
     });
@@ -4388,6 +4395,24 @@ function renderAnaDefectRanking() {
                         }
                     }
                 }
+            },
+            onClick: (evt, elements) => {
+                if (elements.length === 0) return;
+                const idx = elements[0].index;
+                const defectName = displayArr[idx][0];
+                const defectTotal = displayArr[idx][1];
+                const products = productDist[defectName] || {};
+                const sortedProducts = Object.entries(products).sort((a, b) => b[1] - a[1]);
+                
+                document.getElementById('defect-detail-title').textContent = `「${defectName}」产品分布（共${defectTotal}个）`;
+                let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#f5f5f5;"><th style="padding:8px;border:1px solid #ddd;text-align:left;">排名</th><th style="padding:8px;border:1px solid #ddd;text-align:left;">产品名称</th><th style="padding:8px;border:1px solid #ddd;text-align:right;">数量</th><th style="padding:8px;border:1px solid #ddd;text-align:right;">占比</th></tr></thead><tbody>';
+                sortedProducts.forEach((p, i) => {
+                    const pct = defectTotal > 0 ? (p[1] / defectTotal * 100).toFixed(1) : '0.0';
+                    html += `<tr><td style="padding:8px;border:1px solid #ddd;">${i+1}</td><td style="padding:8px;border:1px solid #ddd;">${p[0]}</td><td style="padding:8px;border:1px solid #ddd;text-align:right;">${p[1].toLocaleString()}</td><td style="padding:8px;border:1px solid #ddd;text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#e6f4ea;color:#1e8e3e;">${pct}%</span></td></tr>`;
+                });
+                html += '</tbody></table>';
+                document.getElementById('defect-detail-content').innerHTML = html;
+                document.getElementById('defect-detail-modal').style.display = 'flex';
             }
         }
     });
@@ -7321,5 +7346,15 @@ function hideGanttTip() {
     })();
 })();
 </script>
+<!-- 不良品产品分布弹窗 -->
+<div id="defect-detail-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;width:600px;max-width:90%;max-height:80vh;overflow:auto;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="margin:0;font-size:18px;" id="defect-detail-title">不良品产品分布</h3>
+            <button onclick="document.getElementById('defect-detail-modal').style.display='none'" style="background:none;border:none;font-size:24px;cursor:pointer;color:#666;">&times;</button>
+        </div>
+        <div id="defect-detail-content" style="font-size:14px;"></div>
+    </div>
+</div>
 </body>
 </html>
