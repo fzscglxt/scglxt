@@ -692,31 +692,6 @@
                 </div>
             </div>
 
-            <!-- OEE参数输入 -->
-            <div class="panel" style="margin-bottom:16px;">
-                <div class="panel-header"><span class="panel-title">⚙️ OEE计算参数（整个统计周期总时间，分钟）</span></div>
-                <div class="panel-body">
-                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:end;">
-                        <div>
-                            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">计划时间（分）</label>
-                            <input type="number" id="oee-plan-time" value="480" min="0" style="width:100%;height:32px;padding:0 8px;border:1px solid #cfd3d7;border-radius:4px;font-size:13px;">
-                        </div>
-                        <div>
-                            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">停机时间（分）</label>
-                            <input type="number" id="oee-down-time" value="30" min="0" style="width:100%;height:32px;padding:0 8px;border:1px solid #cfd3d7;border-radius:4px;font-size:13px;">
-                        </div>
-                        <div>
-                            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">运行时间（分）</label>
-                            <input type="number" id="oee-run-time" readonly style="width:100%;height:32px;padding:0 8px;border:1px solid #e0e0e0;border-radius:4px;font-size:13px;background:#f5f5f5;color:#666;">
-                        </div>
-                        <div>
-                            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">标准周期（分/件）</label>
-                            <input type="number" id="oee-standard-cycle" value="0.5" step="0.1" min="0" style="width:100%;height:32px;padding:0 8px;border:1px solid #cfd3d7;border-radius:4px;font-size:13px;">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- OEE指标卡片 -->
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px;">
                 <div class="panel" style="text-align:center;padding:24px;">
@@ -4339,13 +4314,6 @@ function renderMonthlyReport() {
 }
 
 // ===== OEE模块 =====
-// OEE参数自动计算运行时间
-function calcOeeRunTime() {
-    const planTime = +document.getElementById('oee-plan-time').value || 0;
-    const downTime = +document.getElementById('oee-down-time').value || 0;
-    document.getElementById('oee-run-time').value = Math.max(0, planTime - downTime);
-}
-
 function renderOeePage() {
     // 默认时间范围：本月
     const now = new Date();
@@ -4359,44 +4327,53 @@ function renderOeePage() {
     if (!startEl.value) startEl.value = startDate;
     if (!endEl.value) endEl.value = endDate;
     
-    // 初始化参数事件
-    calcOeeRunTime();
-    document.getElementById('oee-plan-time').onchange = calcOeeRunTime;
-    document.getElementById('oee-down-time').onchange = calcOeeRunTime;
-    
     const start = startEl.value;
     const end = endEl.value;
     const wsSel = document.getElementById('oee-workshop').value;
     const wss = wsSel === 'all' ? ['assembly', 'injection', 'silicone'] : [wsSel];
     
-    // 获取OEE参数
-    const planTime = +document.getElementById('oee-plan-time').value || 0;
-    const downTime = +document.getElementById('oee-down-time').value || 0;
-    const runTime = Math.max(0, planTime - downTime);
-    const stdCycle = +document.getElementById('oee-standard-cycle').value || 0;
+    // 计算计划时间：开始到结束的天数 × 每天480分钟（8小时）
+    const startDt = new Date(start);
+    const endDt = new Date(end);
+    const days = Math.round((endDt - startDt) / (1000 * 60 * 60 * 24)) + 1;
+    const planTime = days * 480; // 每天8小时=480分钟
     
     // 汇总数据
     let totalPlan = 0, totalProd = 0, totalPass = 0;
+    let totalStdTime = 0; // 总标准时间（分钟）
     const workshopData = [];
     
+    // 产品标准工时映射：从产品信息表读取
+    const stdHoursMap = {};
+    if (DB.products) {
+        DB.products.forEach(p => {
+            if (p.productName && p.standardHours) {
+                stdHoursMap[p.productName] = +p.standardHours; // 秒
+            }
+        });
+    }
+    
     wss.forEach(ws => {
-        let plan = 0, prod = 0, pass = 0;
+        let plan = 0, prod = 0, pass = 0, stdTime = 0;
         DB[ws].filter(r => r.date >= start && r.date <= end).forEach(r => {
             plan += +r.planQty || 0;
             prod += +r.produceQty || 0;
             pass += +r.passQty || 0;
+            // 标准周期：从产品信息读取，默认30秒
+            const stdSec = stdHoursMap[r.productName] || 30;
+            stdTime += (stdSec * prod) / 60; // 转成分钟
         });
         
         // 标准OEE计算公式
-        const availability = planTime > 0 ? +(runTime / planTime * 100).toFixed(1) : 0;
-        const perfRaw = runTime > 0 && stdCycle > 0 ? stdCycle * prod / runTime * 100 : 0;
-        const performance = Math.min(100, +perfRaw.toFixed(1));
+        const availability = planTime > 0 ? +(stdTime / planTime * 100).toFixed(1) : 0;
+        const performance = 100; // 按标准周期生产，性能率100%
         const quality = prod > 0 ? +(pass / prod * 100).toFixed(1) : 0;
         const oee = +(availability * performance * quality / 10000).toFixed(1);
         
         totalPlan += plan;
         totalProd += prod;
         totalPass += pass;
+        totalStdTime += stdTime;
         
         workshopData.push({
             name: WORKSHOP_CONFIG[ws].name,
@@ -4406,9 +4383,8 @@ function renderOeePage() {
     });
     
     // 计算总体指标
-    const totalAvailability = planTime > 0 ? +(runTime / planTime * 100).toFixed(1) : 0;
-    const totalPerfRaw = runTime > 0 && stdCycle > 0 ? stdCycle * totalProd / runTime * 100 : 0;
-    const totalPerformance = Math.min(100, +totalPerfRaw.toFixed(1));
+    const totalAvailability = planTime > 0 ? +(totalStdTime / planTime * 100).toFixed(1) : 0;
+    const totalPerformance = 100;
     const totalQuality = totalProd > 0 ? +(totalPass / totalProd * 100).toFixed(1) : 0;
     const totalOee = +(totalAvailability * totalPerformance * totalQuality / 10000).toFixed(1);
     
@@ -4440,20 +4416,26 @@ function renderOeePage() {
             const prod = +r.produceQty || 0;
             const pass = +r.passQty || 0;
             const quality = prod > 0 ? +(pass / prod * 100).toFixed(1) : 0;
+            const stdSec = stdHoursMap[r.productName] || 30;
+            const runTime = (stdSec * prod) / 60; // 分钟
+            const downTime = Math.max(0, planTime - runTime);
+            const availability = planTime > 0 ? +(runTime / planTime * 100).toFixed(1) : 0;
+            const oee = +(availability * 100 * quality / 10000).toFixed(1);
+            
             detailRows.push({
                 date: r.date,
                 workshop: WORKSHOP_CONFIG[ws].name,
                 product: r.productName || '-',
                 planTime: planTime,
-                downTime: downTime,
-                runTime: runTime,
-                stdCycle: stdCycle * 60, // 分转秒
+                downTime: Math.round(downTime),
+                runTime: Math.round(runTime),
+                stdCycle: stdSec,
                 prod: prod,
                 pass: pass,
-                availability: totalAvailability,
-                performance: Math.min(100, stdCycle * prod / runTime * 100).toFixed(1),
+                availability: availability,
+                performance: 100,
                 quality: quality,
-                oee: +(totalAvailability * Math.min(100, stdCycle * prod / runTime * 100) * quality / 10000).toFixed(1)
+                oee: oee
             });
         });
     });
@@ -4470,7 +4452,7 @@ function renderOeePage() {
             <td style="text-align:right;">${r.planTime}</td>
             <td style="text-align:right;">${r.downTime}</td>
             <td style="text-align:right;">${r.runTime}</td>
-            <td style="text-align:right;">${r.stdCycle.toFixed(0)}</td>
+            <td style="text-align:right;">${r.stdCycle}</td>
             <td style="text-align:right;">${r.prod.toLocaleString()}</td>
             <td style="text-align:right;">${r.pass.toLocaleString()}</td>
             <td style="text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.availability>=90?'background:#e6f4ea;color:#1e8e3e;':r.availability>=75?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.availability}%</span></td>
