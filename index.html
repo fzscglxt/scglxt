@@ -692,6 +692,31 @@
                 </div>
             </div>
 
+            <!-- OEE参数输入 -->
+            <div class="panel" style="margin-bottom:16px;">
+                <div class="panel-header"><span class="panel-title">⚙️ OEE计算参数（分钟）</span></div>
+                <div class="panel-body">
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:end;">
+                        <div>
+                            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">计划时间（分）</label>
+                            <input type="number" id="oee-plan-time" value="480" min="0" style="width:100%;height:32px;padding:0 8px;border:1px solid #cfd3d7;border-radius:4px;font-size:13px;">
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">停机时间（分）</label>
+                            <input type="number" id="oee-down-time" value="30" min="0" style="width:100%;height:32px;padding:0 8px;border:1px solid #cfd3d7;border-radius:4px;font-size:13px;">
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">运行时间（分）</label>
+                            <input type="number" id="oee-run-time" readonly style="width:100%;height:32px;padding:0 8px;border:1px solid #e0e0e0;border-radius:4px;font-size:13px;background:#f5f5f5;color:#666;">
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">标准周期（分/件）</label>
+                            <input type="number" id="oee-standard-cycle" value="0.5" step="0.1" min="0" style="width:100%;height:32px;padding:0 8px;border:1px solid #cfd3d7;border-radius:4px;font-size:13px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- OEE指标卡片 -->
             <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:16px;">
                 <div class="panel" style="text-align:center;padding:24px;">
@@ -4291,6 +4316,13 @@ function renderMonthlyReport() {
 }
 
 // ===== OEE模块 =====
+// OEE参数自动计算运行时间
+function calcOeeRunTime() {
+    const planTime = +document.getElementById('oee-plan-time').value || 0;
+    const downTime = +document.getElementById('oee-down-time').value || 0;
+    document.getElementById('oee-run-time').value = Math.max(0, planTime - downTime);
+}
+
 function renderOeePage() {
     // 默认时间范围：本月
     const now = new Date();
@@ -4304,10 +4336,21 @@ function renderOeePage() {
     if (!startEl.value) startEl.value = startDate;
     if (!endEl.value) endEl.value = endDate;
     
+    // 初始化参数事件
+    calcOeeRunTime();
+    document.getElementById('oee-plan-time').onchange = calcOeeRunTime;
+    document.getElementById('oee-down-time').onchange = calcOeeRunTime;
+    
     const start = startEl.value;
     const end = endEl.value;
     const wsSel = document.getElementById('oee-workshop').value;
     const wss = wsSel === 'all' ? ['assembly', 'injection', 'silicone'] : [wsSel];
+    
+    // 获取OEE参数
+    const planTime = +document.getElementById('oee-plan-time').value || 0;
+    const downTime = +document.getElementById('oee-down-time').value || 0;
+    const runTime = Math.max(0, planTime - downTime);
+    const stdCycle = +document.getElementById('oee-standard-cycle').value || 0;
     
     // 汇总数据
     let totalPlan = 0, totalProd = 0, totalPass = 0;
@@ -4320,11 +4363,12 @@ function renderOeePage() {
             prod += +r.produceQty || 0;
             pass += +r.passQty || 0;
         });
-        const utilization = plan > 0 ? +(prod / plan * 100).toFixed(1) : 0;
-        const availability = prod > 0 ? (plan > 0 ? +(prod / plan * 100).toFixed(1) : 100) : 0;
-        const performance = prod > 0 ? +(pass / prod * 100).toFixed(1) : 0;
+        
+        // 标准OEE计算公式
+        const availability = planTime > 0 ? +(runTime / planTime * 100).toFixed(1) : 0;
+        const performance = runTime > 0 && stdCycle > 0 ? +(stdCycle * prod / runTime * 100).toFixed(1) : 0;
         const quality = prod > 0 ? +(pass / prod * 100).toFixed(1) : 0;
-        const oee = +(utilization * performance * quality / 10000).toFixed(1);
+        const oee = +(availability * performance * quality / 10000).toFixed(1);
         
         totalPlan += plan;
         totalProd += prod;
@@ -4333,19 +4377,17 @@ function renderOeePage() {
         workshopData.push({
             name: WORKSHOP_CONFIG[ws].name,
             plan, prod, pass,
-            utilization, availability, performance, quality, oee
+            availability, performance, quality, oee
         });
     });
     
     // 计算总体指标
-    const totalUtilization = totalPlan > 0 ? +(totalProd / totalPlan * 100).toFixed(1) : 0;
-    const totalAvailability = totalProd > 0 ? (totalPlan > 0 ? +(totalProd / totalPlan * 100).toFixed(1) : 100) : 0;
-    const totalPerformance = totalProd > 0 ? +(totalPass / totalProd * 100).toFixed(1) : 0;
+    const totalAvailability = planTime > 0 ? +(runTime / planTime * 100).toFixed(1) : 0;
+    const totalPerformance = runTime > 0 && stdCycle > 0 ? +(stdCycle * totalProd / runTime * 100).toFixed(1) : 0;
     const totalQuality = totalProd > 0 ? +(totalPass / totalProd * 100).toFixed(1) : 0;
-    const totalOee = +(totalUtilization * totalPerformance * totalQuality / 10000).toFixed(1);
+    const totalOee = +(totalAvailability * totalPerformance * totalQuality / 10000).toFixed(1);
     
     // 更新指标卡片
-    document.getElementById('oee-utilization').textContent = totalUtilization + '%';
     document.getElementById('oee-availability').textContent = totalAvailability + '%';
     document.getElementById('oee-performance').textContent = totalPerformance + '%';
     document.getElementById('oee-quality').textContent = totalQuality + '%';
@@ -4359,9 +4401,8 @@ function renderOeePage() {
             <td style="text-align:right;">${d.plan.toLocaleString()}</td>
             <td style="text-align:right;">${d.prod.toLocaleString()}</td>
             <td style="text-align:right;">${d.pass.toLocaleString()}</td>
-            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.utilization>=90?'background:#e6f4ea;color:#1e8e3e;':d.utilization>=70?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.utilization}%</span></td>
-            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.availability>=95?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${d.availability}%</span></td>
-            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.performance>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${d.performance}%</span></td>
+            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.availability>=90?'background:#e6f4ea;color:#1e8e3e;':d.availability>=75?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.availability}%</span></td>
+            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.performance>=95?'background:#e6f4ea;color:#1e8e3e;':d.performance>=80?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.performance}%</span></td>
             <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.quality>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${d.quality}%</span></td>
             <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.oee>=85?'background:#e6f4ea;color:#1e8e3e;':d.oee>=60?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.oee}%</span></td>
         </tr>
