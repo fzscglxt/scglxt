@@ -324,6 +324,7 @@
             <div class="nav-item" data-page="anomaly"><span class="icon">🚨</span><span>异常记录</span></div>
             <div class="nav-item" data-page="analysis"><span class="icon">📈</span><span>统计分析</span></div>
             <div class="nav-item" data-page="monthly-report"><span class="icon">📆</span><span>月报</span></div>
+            <div class="nav-item" data-page="oee"><span class="icon">⚙️</span><span>OEE</span></div>
             <div class="nav-item" data-page="gantt"><span class="icon">📋</span><span>甘特图</span></div>
             <div class="nav-item" data-page="products"><span class="icon">📦</span><span>产品信息</span></div>
             <div class="nav-item admin-only" data-page="system" style="display:none"><span class="icon">⚙️</span><span>系统管理</span></div>
@@ -671,6 +672,73 @@
 
             <div class="panel"><div class="panel-header"><span class="panel-title">📋 车间汇总</span></div><div class="panel-body"><div class="table-wrap"><table id="mr-summary-table"></table></div></div></div>
             <div class="panel"><div class="panel-header"><span class="panel-title">📦 产品汇总</span></div><div class="panel-body"><div class="table-wrap"><table id="mr-product-table"></table></div></div></div>
+        </div>
+
+        <!-- ============ OEE ============ -->
+        <div class="page" id="page-oee">
+            <div class="topbar">
+                <div><h1>⚙️ 设备综合效率 OEE</h1></div>
+                <div class="topbar-actions" style="display:flex;align-items:center;gap:6px;">
+                    <select id="oee-workshop" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:110px;" onchange="renderOeePage()">
+                        <option value="all">全部车间</option>
+                        <option value="assembly">装配车间</option>
+                        <option value="injection">注塑车间</option>
+                        <option value="silicone">硅胶车间</option>
+                    </select>
+                    <input type="date" id="oee-date-start" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
+                    <span style="color:var(--text-tertiary);font-size:11px;">至</span>
+                    <input type="date" id="oee-date-end" style="height:28px;font-size:11px;padding:0 4px;border:1px solid #cfd3d7;border-radius:4px;width:120px;">
+                    <button class="btn btn-sm btn-primary" style="height:28px;padding:0 8px;font-size:11px;line-height:26px;" onclick="renderOeePage()">查看</button>
+                </div>
+            </div>
+
+            <!-- OEE指标卡片 -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px;">
+                <div class="panel" style="text-align:center;padding:24px;">
+                    <div style="font-size:13px;color:#666;margin-bottom:8px;">可用率</div>
+                    <div id="oee-availability" style="font-size:36px;font-weight:700;color:#1a73e8;">--</div>
+                    <div style="font-size:11px;color:#999;margin-top:4px;">生产数量 / 计划数量</div>
+                </div>
+                <div class="panel" style="text-align:center;padding:24px;">
+                    <div style="font-size:13px;color:#666;margin-bottom:8px;">性能率</div>
+                    <div id="oee-performance" style="font-size:36px;font-weight:700;color:#7c1fa2;">--</div>
+                    <div style="font-size:11px;color:#999;margin-top:4px;">合格数量 / 生产数量</div>
+                </div>
+                <div class="panel" style="text-align:center;padding:24px;">
+                    <div style="font-size:13px;color:#666;margin-bottom:8px;">质量率</div>
+                    <div id="oee-quality" style="font-size:36px;font-weight:700;color:#34a853;">--</div>
+                    <div style="font-size:11px;color:#999;margin-top:4px;">合格数量 / 生产数量</div>
+                </div>
+                <div class="panel" style="text-align:center;padding:24px;background:linear-gradient(135deg,#e8f0fe,#f3e8fd);">
+                    <div style="font-size:13px;color:#666;margin-bottom:8px;">OEE 综合效率</div>
+                    <div id="oee-total" style="font-size:36px;font-weight:700;background:linear-gradient(135deg,#1a73e8,#7c1fa2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">--</div>
+                    <div style="font-size:11px;color:#999;margin-top:4px;">可用率 × 性能率 × 质量率</div>
+                </div>
+            </div>
+
+            <!-- 各车间OEE对比 -->
+            <div class="panel">
+                <div class="panel-header"><span class="panel-title">📊 各车间OEE对比</span></div>
+                <div class="panel-body">
+                    <div class="table-wrap">
+                        <table id="oee-workshop-table" style="width:100%;border-collapse:collapse;font-size:13px;">
+                            <thead>
+                                <tr style="background:#f5f5f5;">
+                                    <th style="padding:10px;border:1px solid #ddd;">车间</th>
+                                    <th style="padding:10px;border:1px solid #ddd;">计划数量</th>
+                                    <th style="padding:10px;border:1px solid #ddd;">生产数量</th>
+                                    <th style="padding:10px;border:1px solid #ddd;">合格数量</th>
+                                    <th style="padding:10px;border:1px solid #ddd;">可用率</th>
+                                    <th style="padding:10px;border:1px solid #ddd;">性能率</th>
+                                    <th style="padding:10px;border:1px solid #ddd;">质量率</th>
+                                    <th style="padding:10px;border:1px solid #ddd;">OEE</th>
+                                </tr>
+                            </thead>
+                            <tbody id="oee-workshop-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- ============ 9B. 甘特图 ============ -->
@@ -1832,6 +1900,7 @@ function navigateTo(page) {
         anomaly: renderAnomalyPage,
         analysis: renderAnalysisPage,
         'monthly-report': renderMonthlyReport,
+        oee: renderOeePage,
         gantt: renderGanttPage,
         products: renderProductPage, // 同时初始化两个Tab结构 + 分类选项
         system: () => { switchSystemTab('users'); renderUserTable(); }
@@ -4213,6 +4282,80 @@ function renderMonthlyReport() {
 
     // 产品汇总表格
     renderProductSummaryTable('mr-product-table', start, end, 'mr-filter-pass', 'mr-filter-plan', 'mr-workshop');
+}
+
+// ===== OEE模块 =====
+function renderOeePage() {
+    // 默认时间范围：本月
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const startDate = `${y}-${String(m).padStart(2,'0')}-01`;
+    const endDate = `${y}-${String(m).padStart(2,'0')}-${new Date(y, m, 0).getDate()}`;
+    
+    const startEl = document.getElementById('oee-date-start');
+    const endEl = document.getElementById('oee-date-end');
+    if (!startEl.value) startEl.value = startDate;
+    if (!endEl.value) endEl.value = endDate;
+    
+    const start = startEl.value;
+    const end = endEl.value;
+    const wsSel = document.getElementById('oee-workshop').value;
+    const wss = wsSel === 'all' ? ['assembly', 'injection', 'silicone'] : [wsSel];
+    
+    // 汇总数据
+    let totalPlan = 0, totalProd = 0, totalPass = 0;
+    const workshopData = [];
+    
+    wss.forEach(ws => {
+        let plan = 0, prod = 0, pass = 0;
+        DB[ws].filter(r => r.date >= start && r.date <= end).forEach(r => {
+            plan += +r.planQty || 0;
+            prod += +r.produceQty || 0;
+            pass += +r.passQty || 0;
+        });
+        const availability = prod > 0 ? (plan > 0 ? +(prod / plan * 100).toFixed(1) : 100) : 0;
+        const performance = prod > 0 ? +(pass / prod * 100).toFixed(1) : 0;
+        const quality = prod > 0 ? +(pass / prod * 100).toFixed(1) : 0;
+        const oee = +(availability * performance * quality / 10000).toFixed(1);
+        
+        totalPlan += plan;
+        totalProd += prod;
+        totalPass += pass;
+        
+        workshopData.push({
+            name: WORKSHOP_CONFIG[ws].name,
+            plan, prod, pass,
+            availability, performance, quality, oee
+        });
+    });
+    
+    // 计算总体指标
+    const totalAvailability = totalProd > 0 ? (totalPlan > 0 ? +(totalProd / totalPlan * 100).toFixed(1) : 100) : 0;
+    const totalPerformance = totalProd > 0 ? +(totalPass / totalProd * 100).toFixed(1) : 0;
+    const totalQuality = totalProd > 0 ? +(totalPass / totalProd * 100).toFixed(1) : 0;
+    const totalOee = +(totalAvailability * totalPerformance * totalQuality / 10000).toFixed(1);
+    
+    // 更新指标卡片
+    document.getElementById('oee-availability').textContent = totalAvailability + '%';
+    document.getElementById('oee-performance').textContent = totalPerformance + '%';
+    document.getElementById('oee-quality').textContent = totalQuality + '%';
+    document.getElementById('oee-total').textContent = totalOee + '%';
+    
+    // 表格渲染
+    const tbody = document.getElementById('oee-workshop-tbody');
+    tbody.innerHTML = workshopData.map(d => `
+        <tr>
+            <td><b>${d.name}</b></td>
+            <td style="text-align:right;">${d.plan.toLocaleString()}</td>
+            <td style="text-align:right;">${d.prod.toLocaleString()}</td>
+            <td style="text-align:right;">${d.pass.toLocaleString()}</td>
+            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.availability>=95?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${d.availability}%</span></td>
+            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.performance>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${d.performance}%</span></td>
+            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.quality>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${d.quality}%</span></td>
+            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.oee>=85?'background:#e6f4ea;color:#1e8e3e;':d.oee>=60?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.oee}%</span></td>
+        </tr>
+    `).join('');
 }
 
 
