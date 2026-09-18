@@ -1783,8 +1783,8 @@ function initDB() {
         { match: 'C673', toolingNo: 'FZ-GZ-001', machineNo: 'FZ-HJ-001' }
     ];
     (db.assembly || []).forEach(rec => {
-        // 只更新9.17号之前的记录
-        if (rec.date && rec.date >= '2026-09-17') return;
+        // 更新9.17号及之前的所有记录
+        if (rec.date && rec.date > '2026-09-17') return;
         const productName = rec.productName || '';
         let matched = null;
         for (const rule of toolingRuleMap) {
