@@ -1113,6 +1113,8 @@ const WORKSHOP_CONFIG = {
         baseFields: [
             { key: 'date', label: '生产日期', type: 'date', required: true },
             { key: 'shift', label: '班别', type: 'select', options: ['白班', '夜班'], required: true },
+            { key: 'machineNo', label: '机台编号', type: 'text', required: false },
+            { key: 'toolingNo', label: '工装编号', type: 'text', required: false },
             { key: 'productName', label: '产品名称', type: 'text', required: true },
             { key: 'qadNo', label: 'QAD号', type: 'text', required: false },
             { key: 'customerPartNo', label: '客户零件号', type: 'text', required: false },
@@ -1134,7 +1136,8 @@ const WORKSHOP_CONFIG = {
         baseFields: [
             { key: 'date', label: '生产日期', type: 'date', required: true },
             { key: 'shift', label: '班别', type: 'select', options: ['白班', '夜班'], required: true },
-            { key: 'machine', label: '机台', type: 'text', required: false },
+            { key: 'machineNo', label: '机台编号', type: 'text', required: false },
+            { key: 'moldNo', label: '模具编号', type: 'text', required: false },
             { key: 'productName', label: '产品名称', type: 'text', required: true },
             { key: 'qadNo', label: 'QAD号', type: 'text', required: false },
             // --- 新增：3 项生产时间字段（真实 Excel 列）---
