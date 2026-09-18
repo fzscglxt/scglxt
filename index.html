@@ -638,12 +638,7 @@
                     <option value="all">全车间</option><option value="assembly">装配车间</option><option value="injection">注塑车间</option><option value="silicone">硅胶车间</option>
                 </select>
             </div><div class="panel-body"><div class="chart-container" style="height:520px;"><canvas id="ana-chart-defect-top"></canvas></div></div></div>
-            <div class="panel"><div class="panel-header"><span class="panel-title">📋 汇总数据表</span></div><div class="panel-body"><div class="table-wrap"><table id="ana-summary-table"></table></div></div></div>
-            <!-- 需求：各车间平均合格率/平均计划达成率 按周区间折线图 -->
-            <div class="chart-grid">
-                <div class="panel"><div class="panel-header"><span class="panel-title">📈 各车间平均合格率（周）</span></div><div class="panel-body"><div class="chart-container" style="height:300px;"><canvas id="ana-chart-week-pass"></canvas></div></div></div>
-                <div class="panel"><div class="panel-header"><span class="panel-title">📈 各车间平均计划达成率（周）</span></div><div class="panel-body"><div class="chart-container" style="height:300px;"><canvas id="ana-chart-week-plan"></canvas></div></div></div>
-            </div>
+
         </div>
 
 
@@ -4311,13 +4306,10 @@ function renderAnalysisPage() {
             <td><span class="badge ${s.defectRate <= 2 ? 'badge-normal' : s.defectRate <= 5 ? 'badge-warning' : 'badge-danger'}">${s.defectRate}%</span></td>
         </tr>`;
     }).join('');
-    document.getElementById('ana-summary-table').innerHTML = `<thead><tr>
-        <th>车间</th><th>记录数</th><th>计划总数</th><th>总产量</th><th>合格总数</th><th>不良总数</th><th>合格率</th><th>达成率</th><th>不良率</th>
-    </tr></thead><tbody>${tbody}</tbody>`;
+
     // 需求：各车间各产品统计汇总
     renderAnaProductSummary();
-    // 需求：各车间平均合格率/平均计划达成率 按周区间折线图
-    renderAnaWeekTrend();
+
 }
 
 // 需求11：TOP10 排行显示全部10条 + 数值标签
@@ -4549,53 +4541,6 @@ function getWeekStartISO(dateStr) {
 function fmtMD(iso) {
     const d = new Date(iso);
     return String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-}
-function renderAnaWeekTrend() {
-    const range = getAnalysisRange();
-    const wss = ['assembly', 'injection', 'silicone'];
-    const byWeek = {}; // weekStart -> ws -> {plan,prod,pass}
-    wss.forEach(ws => {
-        DB[ws].filter(r => r.date >= range.start && r.date <= range.end).forEach(r => {
-            const wk = getWeekStartISO(r.date);
-            if (!byWeek[wk]) byWeek[wk] = {};
-            if (!byWeek[wk][ws]) byWeek[wk][ws] = { plan: 0, prod: 0, pass: 0 };
-            const g = byWeek[wk][ws];
-            g.plan += +r.planQty || 0;
-            g.prod += +r.produceQty || 0;
-            g.pass += +r.passQty || 0;
-        });
-    });
-    const weekStarts = Object.keys(byWeek).sort();
-    const labels = weekStarts.map(s => `${fmtMD(s)}~${fmtMD(addDaysISO(s, 6))}`);
-    const rateOf = (num, den) => den > 0 ? +(num / den * 100).toFixed(2) : null;
-    const palette = { assembly: '#1a73e8', injection: '#7c1fa2', silicone: '#34a853' };
-    const mkDataset = (key) => wss.map(ws => ({
-        label: WORKSHOP_CONFIG[ws].name,
-        data: weekStarts.map(s => byWeek[s][ws] ? rateOf(key === 'pass' ? byWeek[s][ws].pass : byWeek[s][ws].prod, key === 'pass' ? byWeek[s][ws].prod : byWeek[s][ws].plan) : null),
-        borderColor: palette[ws], backgroundColor: palette[ws], borderWidth: 2, tension: 0.3, spanGaps: false, pointRadius: 3
-    }));
-    const showLabels = weekStarts.length <= 12; // 周数过多时隐藏数值标签避免拥挤
-    const commonOpts = (max) => ({
-        responsive: true, maintainAspectRatio: false,
-        layout: { padding: { top: showLabels ? 22 : 8 } },
-        plugins: {
-            legend: { position: 'bottom' },
-            datalabels: showLabels ? {
-                anchor: 'end', align: 'top', font: { size: 10, weight: '600' }, color: '#202124', formatter: (v) => v == null ? '' : v + '%'
-            } : false
-        },
-        scales: { y: { beginAtZero: true, max } }
-    });
-    // 平均合格率折线图
-    const c1 = document.getElementById('ana-chart-week-pass');
-    if (anaChartWeekPass) anaChartWeekPass.destroy();
-    anaChartWeekPass = new Chart(c1, { type: 'line', plugins: window.ChartDataLabels ? [ChartDataLabels] : [], data: { labels, datasets: mkDataset('pass') }, options: commonOpts(105) });
-    setTimeout(() => { if (anaChartWeekPass) anaChartWeekPass.resize(); }, 60);
-    // 平均计划达成率折线图
-    const c2 = document.getElementById('ana-chart-week-plan');
-    if (anaChartWeekPlan) anaChartWeekPlan.destroy();
-    anaChartWeekPlan = new Chart(c2, { type: 'line', plugins: window.ChartDataLabels ? [ChartDataLabels] : [], data: { labels, datasets: mkDataset('plan') }, options: commonOpts(120) });
-    setTimeout(() => { if (anaChartWeekPlan) anaChartWeekPlan.resize(); }, 60);
 }
 
 function exportAnalysisCSV() {
