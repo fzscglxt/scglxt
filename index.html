@@ -694,7 +694,7 @@
 
             <!-- OEE参数输入 -->
             <div class="panel" style="margin-bottom:16px;">
-                <div class="panel-header"><span class="panel-title">⚙️ OEE计算参数（分钟）</span></div>
+                <div class="panel-header"><span class="panel-title">⚙️ OEE计算参数（整个统计周期总时间，分钟）</span></div>
                 <div class="panel-body">
                     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:end;">
                         <div>
@@ -4360,7 +4360,8 @@ function renderOeePage() {
         
         // 标准OEE计算公式
         const availability = planTime > 0 ? +(runTime / planTime * 100).toFixed(1) : 0;
-        const performance = runTime > 0 && stdCycle > 0 ? +(stdCycle * prod / runTime * 100).toFixed(1) : 0;
+        const perfRaw = runTime > 0 && stdCycle > 0 ? stdCycle * prod / runTime * 100 : 0;
+        const performance = Math.min(100, +perfRaw.toFixed(1));
         const quality = prod > 0 ? +(pass / prod * 100).toFixed(1) : 0;
         const oee = +(availability * performance * quality / 10000).toFixed(1);
         
@@ -4377,7 +4378,8 @@ function renderOeePage() {
     
     // 计算总体指标
     const totalAvailability = planTime > 0 ? +(runTime / planTime * 100).toFixed(1) : 0;
-    const totalPerformance = runTime > 0 && stdCycle > 0 ? +(stdCycle * totalProd / runTime * 100).toFixed(1) : 0;
+    const totalPerfRaw = runTime > 0 && stdCycle > 0 ? stdCycle * totalProd / runTime * 100 : 0;
+    const totalPerformance = Math.min(100, +totalPerfRaw.toFixed(1));
     const totalQuality = totalProd > 0 ? +(totalPass / totalProd * 100).toFixed(1) : 0;
     const totalOee = +(totalAvailability * totalPerformance * totalQuality / 10000).toFixed(1);
     
