@@ -1774,6 +1774,32 @@ function initDB() {
             }
         });
     });
+    // ====== 迁移V3：批量补全装配车间历史记录的工装编号和机台编号 ======
+    const toolingRuleMap = [
+        { match: 'ST2', toolingNo: 'FZ-GZ-008', machineNo: 'FZ-HJ-004' },
+        { match: ['UG', 'UEA', 'HXHA'], toolingNo: 'FZ-GZ-003', machineNo: 'FZ-HJ-003' },
+        { match: 'SC3E', toolingNo: 'FZ-GZ-006', machineNo: 'FZ-HJ-002' },
+        { match: 'C236', toolingNo: 'FZ-GZ-002', machineNo: 'FZ-HJ-001' },
+        { match: 'C673', toolingNo: 'FZ-GZ-001', machineNo: 'FZ-HJ-001' }
+    ];
+    (db.assembly || []).forEach(rec => {
+        // 只更新9.17号之前的记录
+        if (rec.date && rec.date >= '2026-09-17') return;
+        const productName = rec.productName || '';
+        let matched = null;
+        for (const rule of toolingRuleMap) {
+            const matches = Array.isArray(rule.match) ? rule.match : [rule.match];
+            if (matches.some(m => productName.includes(m))) {
+                matched = rule;
+                break;
+            }
+        }
+        if (matched) {
+            if (!rec.toolingNo) rec.toolingNo = matched.toolingNo;
+            if (!rec.machineNo) rec.machineNo = matched.machineNo;
+        }
+    });
+    
     // 确保 boms 表存在且为数组
     if (!Array.isArray(db.boms)) db.boms = [];
     // boms 表每条记录规范化（v1 → v2 结构：bomCode / parentInWarehouse / parentName / parentQty / yieldRate / childOutWarehouse / childName / childUnitQty / childUnit / childNeedQty / childFixedLoss）
