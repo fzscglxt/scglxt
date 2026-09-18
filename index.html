@@ -748,19 +748,19 @@
                         <table style="width:100%;border-collapse:collapse;font-size:12px;">
                             <thead>
                                 <tr style="background:#f5f5f5;">
-                                    <th style="padding:8px;border:1px solid #ddd;">日期</th>
-                                    <th style="padding:8px;border:1px solid #ddd;">车间</th>
-                                    <th style="padding:8px;border:1px solid #ddd;">产品名称</th>
-                                    <th style="padding:8px;border:1px solid #ddd;">计划时间(分)</th>
-                                    <th style="padding:8px;border:1px solid #ddd;">停机时间(分)</th>
-                                    <th style="padding:8px;border:1px solid #ddd;">运行时间(分)</th>
-                                    <th style="padding:8px;border:1px solid #ddd;">标准周期(秒)</th>
-                                    <th style="padding:8px;border:1px solid #ddd;">总产量</th>
-                                    <th style="padding:8px;border:1px solid #ddd;">合格产量</th>
-                                    <th style="padding:8px;border:1px solid #ddd;">可用率</th>
-                                    <th style="padding:8px;border:1px solid #ddd;">性能率</th>
-                                    <th style="padding:8px;border:1px solid #ddd;">质量率</th>
-                                    <th style="padding:8px;border:1px solid #ddd;">OEE</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">日期</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">车间</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">产品名称</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">计划时间(分)</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">停机时间(分)</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">运行时间(分)</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">标准周期(秒)</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">总产量</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">合格产量</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">可用率</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">性能率</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">质量率</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">OEE</th>
                                 </tr>
                             </thead>
                             <tbody id="oee-detail-tbody"></tbody>
@@ -3854,13 +3854,13 @@ function renderWorkshopDefectStats(ws, fullList, chartId, tableId, chartRef, pro
             <td style="text-align:center;font-weight:600;color:var(--danger);">${rank}</td>
             <td><span class="badge badge-danger" style="margin-right:6px;">TOP${rank}</span>${x[0]}</td>
             <td style="text-align:right;font-weight:600;color:var(--danger);">${x[1].toLocaleString()}</td>
-            <td style="text-align:right;">${pct}%${bar}</td>
+            <td style="text-align:center;">${pct}%${bar}</td>
         </tr>`;
     }).join('');
     const foot = totalDefect > 0 ? `<tfoot><tr style="font-weight:700;background:#fafbfc;">
-        <td colspan="2" style="text-align:right;">合计 / 统计记录 ${statList.length} 条${others > 0 ? `（其他不良合计 ${others} 件）` : ''}</td>
+        <td colspan="2" style="text-align:center;">合计 / 统计记录 ${statList.length} 条${others > 0 ? `（其他不良合计 ${others} 件）` : ''}</td>
         <td style="text-align:right;color:var(--danger);">${totalDefect.toLocaleString()}</td>
-        <td style="text-align:right;">100.0%</td>
+        <td style="text-align:center;">100.0%</td>
     </tr></tfoot>` : '';
     document.getElementById(tableId).innerHTML = `<thead><tr>
         <th style="width:56px;text-align:center;">#</th>
@@ -4429,13 +4429,13 @@ function renderOeePage() {
     tbody.innerHTML = workshopData.map(d => `
         <tr>
             <td><b>${d.name}</b></td>
-            <td style="text-align:right;">${d.plan.toLocaleString()}</td>
-            <td style="text-align:right;">${d.prod.toLocaleString()}</td>
-            <td style="text-align:right;">${d.pass.toLocaleString()}</td>
-            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.availability>=90?'background:#e6f4ea;color:#1e8e3e;':d.availability>=75?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.availability}%</span></td>
-            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.performance>=95?'background:#e6f4ea;color:#1e8e3e;':d.performance>=80?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.performance}%</span></td>
-            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.quality>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${d.quality}%</span></td>
-            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.oee>=85?'background:#e6f4ea;color:#1e8e3e;':d.oee>=60?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.oee}%</span></td>
+            <td style="text-align:center;">${d.plan.toLocaleString()}</td>
+            <td style="text-align:center;">${d.prod.toLocaleString()}</td>
+            <td style="text-align:center;">${d.pass.toLocaleString()}</td>
+            <td style="text-align:center;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.availability>=90?'background:#e6f4ea;color:#1e8e3e;':d.availability>=75?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.availability}%</span></td>
+            <td style="text-align:center;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.performance>=95?'background:#e6f4ea;color:#1e8e3e;':d.performance>=80?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.performance}%</span></td>
+            <td style="text-align:center;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.quality>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${d.quality}%</span></td>
+            <td style="text-align:center;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.oee>=85?'background:#e6f4ea;color:#1e8e3e;':d.oee>=60?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.oee}%</span></td>
         </tr>
     `).join('');
 
@@ -4487,16 +4487,16 @@ function renderOeePage() {
             <td><b>${r.date}</b></td>
             <td>${r.workshop}</td>
             <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.product}">${r.product}</td>
-            <td style="text-align:right;">${r.planTime}</td>
-            <td style="text-align:right;">${r.downTime}</td>
-            <td style="text-align:right;">${r.runTime}</td>
-            <td style="text-align:right;">${r.stdCycle}</td>
-            <td style="text-align:right;">${r.prod.toLocaleString()}</td>
-            <td style="text-align:right;">${r.pass.toLocaleString()}</td>
-            <td style="text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.availability>=90?'background:#e6f4ea;color:#1e8e3e;':r.availability>=75?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.availability}%</span></td>
-            <td style="text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.performance>=95?'background:#e6f4ea;color:#1e8e3e;':r.performance>=80?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.performance}%</span></td>
-            <td style="text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.quality>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${r.quality}%</span></td>
-            <td style="text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.oee>=85?'background:#e6f4ea;color:#1e8e3e;':r.oee>=60?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.oee}%</span></td>
+            <td style="text-align:center;">${r.planTime}</td>
+            <td style="text-align:center;">${r.downTime}</td>
+            <td style="text-align:center;">${r.runTime}</td>
+            <td style="text-align:center;">${r.stdCycle}</td>
+            <td style="text-align:center;">${r.prod.toLocaleString()}</td>
+            <td style="text-align:center;">${r.pass.toLocaleString()}</td>
+            <td style="text-align:center;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.availability>=90?'background:#e6f4ea;color:#1e8e3e;':r.availability>=75?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.availability}%</span></td>
+            <td style="text-align:center;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.performance>=95?'background:#e6f4ea;color:#1e8e3e;':r.performance>=80?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.performance}%</span></td>
+            <td style="text-align:center;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.quality>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${r.quality}%</span></td>
+            <td style="text-align:center;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.oee>=85?'background:#e6f4ea;color:#1e8e3e;':r.oee>=60?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.oee}%</span></td>
         </tr>
     `).join('');
 }
@@ -5823,7 +5823,7 @@ function showProdImportPreview(fileName, totalParsed) {
             <td>${r.unit || ''}</td>
             <td>${r.prodWorkshopLabel || (r.prodWorkshop ? WORKSHOP_KEY2CN[r.prodWorkshop] : '')}</td>
             <td>${r.issueWorkshopLabel || (r.issueWorkshop ? WORKSHOP_KEY2CN[r.issueWorkshop] : '')}</td>
-            <td style="text-align:right;">${r.standardHours === '' ? '' : Number(r.standardHours)}</td>
+            <td style="text-align:center;">${r.standardHours === '' ? '' : Number(r.standardHours)}</td>
             <td style="color:${hasErr ? '#ea4335' : '#34a853'};font-size:12px;">${hasErr ? '❌ '+r.errors.join('；') : '✅ 校验通过'}</td>
         </tr>`;
     }).join('');
@@ -6484,7 +6484,7 @@ function renderBomTreeNodeDetail(nodeName) {
                 <td><code>${esc(b.bomCode||'')}</code></td>
                 <td><b>${esc(b.childName||'')}</b></td>
                 <td style="text-align:center;">${esc(b.childUnit||'')}</td>
-                <td style="text-align:right;"><b style="color:#1a73e8;">${Number(b.childNeedQty)||0}</b></td>
+                <td style="text-align:center;"><b style="color:#1a73e8;">${Number(b.childNeedQty)||0}</b></td>
                 <td style="text-align:right;color:#ea4335;">${Number(b.childFixedLoss)||0}</td>
                 <td style="font-size:12px;color:#5f6368;">${esc(b.childOutWarehouse||'')}</td>
                 <td style="text-align:center;color:#34a853;">${esc(b.yieldRate||'')}</td>
@@ -6498,8 +6498,8 @@ function renderBomTreeNodeDetail(nodeName) {
                 <td><code>${esc(b.bomCode||'')}</code></td>
                 <td><b>${esc(b.parentName||'')}</b></td>
                 <td style="font-size:12px;color:#5f6368;">${esc(b.parentInWarehouse||'')}</td>
-                <td style="text-align:right;">${Number(b.parentQty)||0}</td>
-                <td style="text-align:right;"><b style="color:#1a73e8;">${Number(b.childNeedQty)||0}</b></td>
+                <td style="text-align:center;">${Number(b.parentQty)||0}</td>
+                <td style="text-align:center;"><b style="color:#1a73e8;">${Number(b.childNeedQty)||0}</b></td>
                 <td style="text-align:right;color:#ea4335;">${Number(b.childFixedLoss)||0}</td>
                 <td style="text-align:center;color:#34a853;">${esc(b.yieldRate||'')}</td>
                 <td style="text-align:center;white-space:nowrap;">
@@ -6664,12 +6664,12 @@ function renderBomTable() {
             <td><code>${b.bomCode || ''}</code></td>
             <td title="${pv.tip || ''}">${b.parentName || ''}<br><span class="badge ${badgeStyle[pv.status]}" style="font-size:10px;">${pv.badge}</span></td>
             <td style="font-size:12px;color:#5f6368;">${b.parentInWarehouse || ''}</td>
-            <td style="text-align:right;">${Number(b.parentQty) || 0}</td>
+            <td style="text-align:center;">${Number(b.parentQty) || 0}</td>
             <td style="text-align:center;color:#34a853;">${b.yieldRate || ''}</td>
             <td title="${cv.tip || ''}">${b.childName || ''}<br><span class="badge ${badgeStyle[cv.status]}" style="font-size:10px;">${cv.badge}</span></td>
             <td style="font-size:12px;color:#5f6368;">${b.childOutWarehouse || ''}</td>
             <td style="text-align:center;">${b.childUnit || ''}</td>
-            <td style="text-align:right;"><b style="color:#1a73e8;">${Number(b.childNeedQty) || 0}</b></td>
+            <td style="text-align:center;"><b style="color:#1a73e8;">${Number(b.childNeedQty) || 0}</b></td>
             <td style="text-align:right;color:#ea4335;">${Number(b.childFixedLoss) || 0}</td>
             <td style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">${formatDateTime(b.createdAt)}</td>
             <td style="white-space:nowrap;">
@@ -6943,7 +6943,7 @@ function showBomImportPreview(fileName, totalParsed) {
             <td><code>${r.bomCode || ''}</code></td>
             <td>${r.parentName || ''}</td>
             <td>${r.childName || ''}</td>
-            <td style="text-align:right;">${Number(r.childNeedQty) || 0}</td>
+            <td style="text-align:center;">${Number(r.childNeedQty) || 0}</td>
             <td style="text-align:right;color:#ea4335;">${Number(r.childFixedLoss) || 0}</td>
             <td style="color:${hasErr ? '#ea4335' : '#34a853'};font-size:12px;">${hasErr ? '❌ '+r.errors.join('；') : '✅ 校验通过'}</td>
         </tr>`;
