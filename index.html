@@ -3087,17 +3087,17 @@ function buildRecordFormHTML(ws, editData) {
             </div>`;
         } else if (f.key === 'machineNo') {
             // 机台编号：从设备系统读取，可搜索下拉
-            const eqOptions = EQUIPMENT_LIST.map(e => e.equipmentNo || e.code || e.name || '').filter(x => x);
+            const eqOptions = EQUIPMENT_LIST.map(e => e.code || e.equipmentNo || e.name || '').filter(x => x);
             input = `<input list="eq-list" id="mf_machineNo" value="${v}" placeholder="选择或输入机台编号">
                 <datalist id="eq-list">${eqOptions.map(o => `<option value="${o}">`).join('')}</datalist>`;
         } else if (f.key === 'toolingNo') {
             // 工装编号：从模具系统工装台账读取
-            const toolOptions = TOOLING_LIST.map(t => t.toolingNo || t.code || t.name || '').filter(x => x);
+            const toolOptions = TOOLING_LIST.map(t => t.code || t.toolingNo || t.name || '').filter(x => x);
             input = `<input list="tool-list" id="mf_toolingNo" value="${v}" placeholder="选择或输入工装编号">
                 <datalist id="tool-list">${toolOptions.map(o => `<option value="${o}">`).join('')}</datalist>`;
         } else if (f.key === 'moldNo') {
             // 模具编号：从模具系统模具台账读取
-            const moldOptions = MOLD_LIST.map(m => m.moldNo || m.code || m.name || '').filter(x => x);
+            const moldOptions = MOLD_LIST.map(m => m.code || m.moldNo || m.name || '').filter(x => x);
             input = `<input list="mold-list" id="mf_moldNo" value="${v}" placeholder="选择或输入模具编号">
                 <datalist id="mold-list">${moldOptions.map(o => `<option value="${o}">`).join('')}</datalist>`;
         } else if (f.type === 'select') {
@@ -7092,7 +7092,7 @@ async function loadCrossSystemData() {
         const eqRes = await fetch('https://fz-eq-mgmt.pages.dev/api/db', { cache: 'no-store' });
         if (eqRes.ok) {
             const eqData = await eqRes.json();
-            EQUIPMENT_LIST = eqData.equipments || [];
+            EQUIPMENT_LIST = eqData.db?.equipments || eqData.equipments || [];
         }
     } catch(e) { console.warn('设备系统数据加载失败', e); }
     try {
@@ -7100,8 +7100,8 @@ async function loadCrossSystemData() {
         const moldRes = await fetch('https://fz-mold-mgmt.pages.dev/api/db', { cache: 'no-store' });
         if (moldRes.ok) {
             const moldData = await moldRes.json();
-            MOLD_LIST = moldData.molds || [];
-            TOOLING_LIST = moldData.tooling || [];
+            MOLD_LIST = moldData.db?.molds || moldData.molds || [];
+            TOOLING_LIST = moldData.db?.fixtures || moldData.fixtures || [];
         }
     } catch(e) { console.warn('模具系统数据加载失败', e); }
 }
