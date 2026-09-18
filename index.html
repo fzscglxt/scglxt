@@ -1179,6 +1179,10 @@ const WORKSHOP_CONFIG = {
 // ============================================================
 const STORAGE_KEY = 'fz_production_mgmt_db_v1';
 let DB = null; // 当前内存中的数据库
+// 跨系统数据：设备列表、工装列表、模具列表
+let EQUIPMENT_LIST = [];
+let TOOLING_LIST = [];
+let MOLD_LIST = [];
 
 // 默认数据库结构
 function getDefaultDB() {
@@ -3081,6 +3085,21 @@ function buildRecordFormHTML(ws, editData) {
                 <div id="mf_productName_dropdown" class="searchable-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:240px;overflow-y:auto;background:#fff;border:1px solid #1a73e8;border-top:none;z-index:1000;border-radius:0 0 8px 8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
                 <input type="hidden" id="mf_productName" value="${selectedName.replace(/\"/g, '&quot;')}">
             </div>`;
+        } else if (f.key === 'machineNo') {
+            // 机台编号：从设备系统读取，可搜索下拉
+            const eqOptions = EQUIPMENT_LIST.map(e => e.equipmentNo || e.code || e.name || '').filter(x => x);
+            input = `<input list="eq-list" id="mf_machineNo" value="${v}" placeholder="选择或输入机台编号">
+                <datalist id="eq-list">${eqOptions.map(o => `<option value="${o}">`).join('')}</datalist>`;
+        } else if (f.key === 'toolingNo') {
+            // 工装编号：从模具系统工装台账读取
+            const toolOptions = TOOLING_LIST.map(t => t.toolingNo || t.code || t.name || '').filter(x => x);
+            input = `<input list="tool-list" id="mf_toolingNo" value="${v}" placeholder="选择或输入工装编号">
+                <datalist id="tool-list">${toolOptions.map(o => `<option value="${o}">`).join('')}</datalist>`;
+        } else if (f.key === 'moldNo') {
+            // 模具编号：从模具系统模具台账读取
+            const moldOptions = MOLD_LIST.map(m => m.moldNo || m.code || m.name || '').filter(x => x);
+            input = `<input list="mold-list" id="mf_moldNo" value="${v}" placeholder="选择或输入模具编号">
+                <datalist id="mold-list">${moldOptions.map(o => `<option value="${o}">`).join('')}</datalist>`;
         } else if (f.type === 'select') {
             input = `<select id="mf_${f.key}">${(f.options || []).map(o => `<option value="${o}" ${v === o ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
         } else if (f.type === 'number') {
@@ -7061,8 +7080,31 @@ window.addEventListener('DOMContentLoaded', () => {
         startCloudPolling();
         // 已登录自动进入
         if (getCurrentUser()) enterApp();
+        // 异步加载跨系统数据（设备、工装、模具）
+        loadCrossSystemData();
     });
 });
+
+// 加载跨系统数据：从设备系统和模具系统获取列表
+async function loadCrossSystemData() {
+    try {
+        // 获取设备列表
+        const eqRes = await fetch('https://fz-eq-mgmt.pages.dev/api/db', { cache: 'no-store' });
+        if (eqRes.ok) {
+            const eqData = await eqRes.json();
+            EQUIPMENT_LIST = eqData.equipments || [];
+        }
+    } catch(e) { console.warn('设备系统数据加载失败', e); }
+    try {
+        // 获取模具和工装列表
+        const moldRes = await fetch('https://fz-mold-mgmt.pages.dev/api/db', { cache: 'no-store' });
+        if (moldRes.ok) {
+            const moldData = await moldRes.json();
+            MOLD_LIST = moldData.molds || [];
+            TOOLING_LIST = moldData.tooling || [];
+        }
+    } catch(e) { console.warn('模具系统数据加载失败', e); }
+}
 
 // ============================================================
 // 第十一部分：甘特图模块
