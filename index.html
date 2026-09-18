@@ -742,7 +742,19 @@
 
             <!-- OEE生产明细 -->
             <div class="panel" style="margin-top:16px;">
-                <div class="panel-header"><span class="panel-title">📋 OEE生产明细</span></div>
+                <div class="panel-header">
+                    <span class="panel-title">📋 OEE生产明细</span>
+                    <div style="margin-left:auto;display:flex;gap:10px;align-items:center;">
+                        <select id="oee-detail-workshop" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;">
+                            <option value="all">全部车间</option>
+                            <option value="assembly">装配车间</option>
+                            <option value="injection">注塑车间</option>
+                            <option value="silicone">硅胶车间</option>
+                        </select>
+                        <input list="oee-product-list" id="oee-detail-product" placeholder="搜索产品..." style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;width:180px;">
+                        <datalist id="oee-product-list"></datalist>
+                    </div>
+                </div>
                 <div class="panel-body">
                     <div class="table-wrap">
                         <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -4481,24 +4493,49 @@ function renderOeePage() {
     // 按日期倒序
     detailRows.sort((a,b) => b.date.localeCompare(a.date));
     
-    const detailTbody = document.getElementById('oee-detail-tbody');
-    detailTbody.innerHTML = detailRows.map(r => `
-        <tr>
-            <td><b>${r.date}</b></td>
-            <td>${r.workshop}</td>
-            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.product}">${r.product}</td>
-            <td style="text-align:center;">${r.planTime}</td>
-            <td style="text-align:center;">${r.downTime}</td>
-            <td style="text-align:center;">${r.runTime}</td>
-            <td style="text-align:center;">${r.stdCycle}</td>
-            <td style="text-align:center;">${r.prod.toLocaleString()}</td>
-            <td style="text-align:center;">${r.pass.toLocaleString()}</td>
-            <td style="text-align:center;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.availability>=90?'background:#e6f4ea;color:#1e8e3e;':r.availability>=75?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.availability}%</span></td>
-            <td style="text-align:center;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.performance>=95?'background:#e6f4ea;color:#1e8e3e;':r.performance>=80?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.performance}%</span></td>
-            <td style="text-align:center;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.quality>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${r.quality}%</span></td>
-            <td style="text-align:center;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.oee>=85?'background:#e6f4ea;color:#1e8e3e;':r.oee>=60?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.oee}%</span></td>
-        </tr>
-    `).join('');
+    // 填充产品搜索列表
+    const productSet = new Set(detailRows.map(r => r.product));
+    document.getElementById('oee-product-list').innerHTML = [...productSet].map(p => `<option value="${p}">`).join('');
+    
+    // 筛选明细
+    function renderOeeDetail() {
+        const wsFilter = document.getElementById('oee-detail-workshop').value;
+        const pFilter = document.getElementById('oee-detail-product').value.trim();
+        
+        let filtered = detailRows;
+        if (wsFilter !== 'all') {
+            const wsName = WORKSHOP_CONFIG[wsFilter].name;
+            filtered = filtered.filter(r => r.workshop === wsName);
+        }
+        if (pFilter) {
+            filtered = filtered.filter(r => r.product.includes(pFilter));
+        }
+        
+        const detailTbody = document.getElementById('oee-detail-tbody');
+        detailTbody.innerHTML = filtered.map(r => `
+            <tr>
+                <td><b>${r.date}</b></td>
+                <td>${r.workshop}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.product}">${r.product}</td>
+                <td style="text-align:center;">${r.planTime}</td>
+                <td style="text-align:center;">${r.downTime}</td>
+                <td style="text-align:center;">${r.runTime}</td>
+                <td style="text-align:center;">${r.stdCycle}</td>
+                <td style="text-align:center;">${r.prod.toLocaleString()}</td>
+                <td style="text-align:center;">${r.pass.toLocaleString()}</td>
+                <td style="text-align:center;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.availability>=90?'background:#e6f4ea;color:#1e8e3e;':r.availability>=75?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.availability}%</span></td>
+                <td style="text-align:center;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.performance>=95?'background:#e6f4ea;color:#1e8e3e;':r.performance>=80?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.performance}%</span></td>
+                <td style="text-align:center;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.quality>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${r.quality}%</span></td>
+                <td style="text-align:center;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.oee>=85?'background:#e6f4ea;color:#1e8e3e;':r.oee>=60?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.oee}%</span></td>
+            </tr>
+        `).join('');
+    }
+    
+    renderOeeDetail();
+    
+    // 绑定筛选事件
+    document.getElementById('oee-detail-workshop').onchange = renderOeeDetail;
+    document.getElementById('oee-detail-product').oninput = renderOeeDetail;
 }
 
 
