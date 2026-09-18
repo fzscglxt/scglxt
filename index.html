@@ -1799,7 +1799,111 @@ function initDB() {
             if (!rec.machineNo) rec.machineNo = matched.machineNo;
         }
     });
-    
+
+    // ====== 迁移V4：批量补全注塑车间历史记录的模具编号和机台编号 ======
+    const moldRuleMap = [
+        { product: 'SC3E 喷漆装饰件A-素材-备模', moldNo: 'FZ-MJ-23002', machineNo: 'FZ-ZS-004' },
+        { product: 'SC3E 喷漆装饰件B-素材', moldNo: 'FZ-MJ-23001', machineNo: 'FZ-ZS-002' },
+        { product: 'SC3E 喷漆装饰件B-素材-备模', moldNo: 'FZ-MJ-24001', machineNo: 'FZ-ZS-003' },
+        { product: 'XC90_后左壳体_RL', moldNo: 'FZ-MJ-24002', machineNo: 'FZ-ZS-003' },
+        { product: 'XC90_后右壳体_RR', moldNo: 'FZ-MJ-24002', machineNo: 'FZ-ZS-003' },
+        { product: 'V206 侧转向手柄底座_894', moldNo: 'FZ-MJ-25001', machineNo: 'FZ-ZS-002' },
+        { product: 'V206 后转向手柄底座_894', moldNo: 'FZ-MJ-25002', machineNo: 'FZ-ZS-003' },
+        { product: 'F2XU_左导流片_CTR', moldNo: 'FZ-MJ-25010', machineNo: 'FZ-ZS-005' },
+        { product: 'F2XU_右导流片_CTR', moldNo: 'FZ-MJ-25010', machineNo: 'FZ-ZS-005' },
+        { product: 'F2XU_主叶片_CTR', moldNo: 'FZ-MJ-25011', machineNo: 'FZ-ZS-003' },
+        { product: 'F2XU_拨钮_CTR', moldNo: 'FZ-MJ-25012', machineNo: 'FZ-ZS-003' },
+        { product: 'F2XU_主叶片1_OL', moldNo: 'FZ-MJ-25013', machineNo: 'FZ-ZS-007' },
+        { product: 'F2XU_主叶片3_OL', moldNo: 'FZ-MJ-25013', machineNo: 'FZ-ZS-007' },
+        { product: 'F2XU_主叶片1_OR', moldNo: 'FZ-MJ-25013', machineNo: 'FZ-ZS-007' },
+        { product: 'F2XU_主叶片3_OR', moldNo: 'FZ-MJ-25013', machineNo: 'FZ-ZS-007' },
+        { product: 'F2XU_主叶片2_OL', moldNo: 'FZ-MJ-25014', machineNo: 'FZ-ZS-003' },
+        { product: 'F2XU_主叶片2_OR', moldNo: 'FZ-MJ-25014', machineNo: 'FZ-ZS-003' },
+        { product: 'F2XU_拨钮_OL', moldNo: 'FZ-MJ-25015', machineNo: 'FZ-ZS-003' },
+        { product: 'F2XU_拨钮_OR', moldNo: 'FZ-MJ-25015', machineNo: 'FZ-ZS-003' },
+        { product: 'D13 喷漆开关装饰件-素材', moldNo: 'FZ-MJ-25006', machineNo: 'FZ-ZS-002' },
+        { product: '673D中面框素材', moldNo: 'FZ-MJ-25004', machineNo: 'FZ-ZS-003' },
+        { product: '673D左喷漆面板素材', moldNo: 'FZ-MJ-25005', machineNo: 'FZ-ZS-005' },
+        { product: 'XC90_后左壳体_RL-新', moldNo: 'FZ-MJ-24002', machineNo: 'FZ-ZS-003' },
+        { product: 'XC90_后右壳体_RR-新', moldNo: 'FZ-MJ-24002', machineNo: 'FZ-ZS-003' },
+        { product: 'C121_MCM_主叶片1_CL', moldNo: 'FZ-MJ-24004', machineNo: 'FZ-ZS-006' },
+        { product: 'C121_MCM_主叶片1_CR', moldNo: 'FZ-MJ-24004', machineNo: 'FZ-ZS-006' },
+        { product: 'C121_MCM_主叶片2_CL', moldNo: 'FZ-MJ-24005', machineNo: 'FZ-ZS-006' },
+        { product: 'C121_MCM_主叶片2_CR', moldNo: 'FZ-MJ-24005', machineNo: 'FZ-ZS-006' },
+        { product: 'C121_MCM_主叶片支架1_CL', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_主叶片支架_C', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_主叶片支架2_CR', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_主叶片连杆_C', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_壳体_C', moldNo: 'FZ-MJ-24003', machineNo: 'FZ-ZS-003' },
+        { product: 'C121_MCM_次叶片1_CR', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片2_CR', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片3_CR', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片4_CR', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片5_CR', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片1_CL', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片2_CL', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片3_CL', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片4_CL', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片5_CL', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片6_CL', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片支架1_CR', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_次叶片支架2_CR', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_次叶片支架1_CL', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_次叶片支架2_CL', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_次叶片连杆_CR', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_次叶片连杆_CL', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_壳体_LH', moldNo: 'FZ-MJ-24011', machineNo: 'FZ-ZS-003' },
+        { product: 'C121_MCM_次叶片1_LH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片2_LH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片3_LH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片4_LH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片5_LH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片支架1_LH', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_次叶片支架2_LH', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_次叶片连杆_LH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_主叶片2_LH', moldNo: 'FZ-MJ-24014', machineNo: 'FZ-ZS-006' },
+        { product: 'C121_MCM_主叶片支架1_LH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_主叶片支架2_LH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_主叶片连杆_LH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_主叶片1_LH', moldNo: 'FZ-MJ-24012', machineNo: 'FZ-ZS-006' },
+        { product: 'C121_MCM_主叶片3_LH', moldNo: 'FZ-MJ-24012', machineNo: 'FZ-ZS-006' },
+        { product: 'C121_MCM_壳体_RH', moldNo: 'FZ-MJ-24011', machineNo: 'FZ-ZS-003' },
+        { product: 'C121_MCM_次叶片1_RH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片2_RH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片3_RH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片4_RH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片5_RH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+        { product: 'C121_MCM_次叶片支架1_RH', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_次叶片支架2_RH', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_次叶片连杆_RH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_主叶片2_RH', moldNo: 'FZ-MJ-24014', machineNo: 'FZ-ZS-006' },
+        { product: 'C121_MCM_主叶片支架1_RH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_主叶片支架2_RH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_主叶片连杆_RH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+        { product: 'C121_MCM_主叶片1_RH', moldNo: 'FZ-MJ-24012', machineNo: 'FZ-ZS-006' },
+        { product: 'C121_MCM_主叶片3_RH', moldNo: 'FZ-MJ-24012', machineNo: 'FZ-ZS-006' },
+        { product: 'G28杯托电镀饰环-素材', moldNo: 'FZ-MJ-25006', machineNo: 'FZ-ZS-004' },
+        { product: 'G18后中扶手 杯托电镀件-素材', moldNo: 'FZ-MJ-25007', machineNo: 'FZ-ZS-008' },
+        { product: '673D中面框素材-新', moldNo: 'FZ-MJ-25004', machineNo: 'FZ-ZS-003' },
+        { product: 'FL扬声器灯-165-铭牌-素材', moldNo: 'FZ-MJ-25018', machineNo: 'FZ-ZS-008' },
+        { product: 'FR扬声器灯-166-铭牌-素材', moldNo: 'FZ-MJ-25018', machineNo: 'FZ-ZS-008' },
+        { product: 'RL扬声器灯-167-铭牌-素材', moldNo: 'FZ-MJ-25019', machineNo: 'FZ-ZS-008' },
+        { product: 'ST2 左装饰件-喷漆素材', moldNo: 'FZ-MJ-25016', machineNo: 'FZ-ZS-005' },
+        { product: 'ST2 右装饰件-喷漆素材', moldNo: 'FZ-MJ-25016', machineNo: 'FZ-ZS-005' },
+        { product: '新X11反光碗L-素材', moldNo: 'FZ-MJ-26002', machineNo: 'FZ-ZS-008' },
+        { product: '新X11反光碗R-素材', moldNo: 'FZ-MJ-26002', machineNo: 'FZ-ZS-008' },
+        { product: '理想W05 左B柱出风口拨扭（双色）', moldNo: 'FZ-MJ-26004', machineNo: 'FZ-ZS-001' }
+    ];
+    (db.injection || []).forEach(rec => {
+        // 更新所有历史记录
+        const productName = rec.productName || '';
+        const matched = moldRuleMap.find(r => r.product === productName);
+        if (matched) {
+            if (!rec.moldNo) rec.moldNo = matched.moldNo;
+            if (!rec.machineNo) rec.machineNo = matched.machineNo;
+        }
+    });
+
     // 确保 boms 表存在且为数组
     if (!Array.isArray(db.boms)) db.boms = [];
     // boms 表每条记录规范化（v1 → v2 结构：bomCode / parentInWarehouse / parentName / parentQty / yieldRate / childOutWarehouse / childName / childUnitQty / childUnit / childNeedQty / childFixedLoss）
@@ -3177,6 +3281,111 @@ function onManualProductChange(ws, productName) {
         if (matched) {
             const toolEl = document.getElementById('mf_toolingNo');
             if (toolEl) toolEl.value = matched.toolingNo;
+            const machEl = document.getElementById('mf_machineNo');
+            if (machEl) machEl.value = matched.machineNo;
+        }
+    }
+    
+    // 根据产品名称自动填充模具编号和机台编号（注塑车间）
+    if (ws === 'injection') {
+        const moldRuleMap = [
+            { product: 'SC3E 喷漆装饰件A-素材-备模', moldNo: 'FZ-MJ-23002', machineNo: 'FZ-ZS-004' },
+            { product: 'SC3E 喷漆装饰件B-素材', moldNo: 'FZ-MJ-23001', machineNo: 'FZ-ZS-002' },
+            { product: 'SC3E 喷漆装饰件B-素材-备模', moldNo: 'FZ-MJ-24001', machineNo: 'FZ-ZS-003' },
+            { product: 'XC90_后左壳体_RL', moldNo: 'FZ-MJ-24002', machineNo: 'FZ-ZS-003' },
+            { product: 'XC90_后右壳体_RR', moldNo: 'FZ-MJ-24002', machineNo: 'FZ-ZS-003' },
+            { product: 'V206 侧转向手柄底座_894', moldNo: 'FZ-MJ-25001', machineNo: 'FZ-ZS-002' },
+            { product: 'V206 后转向手柄底座_894', moldNo: 'FZ-MJ-25002', machineNo: 'FZ-ZS-003' },
+            { product: 'F2XU_左导流片_CTR', moldNo: 'FZ-MJ-25010', machineNo: 'FZ-ZS-005' },
+            { product: 'F2XU_右导流片_CTR', moldNo: 'FZ-MJ-25010', machineNo: 'FZ-ZS-005' },
+            { product: 'F2XU_主叶片_CTR', moldNo: 'FZ-MJ-25011', machineNo: 'FZ-ZS-003' },
+            { product: 'F2XU_拨钮_CTR', moldNo: 'FZ-MJ-25012', machineNo: 'FZ-ZS-003' },
+            { product: 'F2XU_主叶片1_OL', moldNo: 'FZ-MJ-25013', machineNo: 'FZ-ZS-007' },
+            { product: 'F2XU_主叶片3_OL', moldNo: 'FZ-MJ-25013', machineNo: 'FZ-ZS-007' },
+            { product: 'F2XU_主叶片1_OR', moldNo: 'FZ-MJ-25013', machineNo: 'FZ-ZS-007' },
+            { product: 'F2XU_主叶片3_OR', moldNo: 'FZ-MJ-25013', machineNo: 'FZ-ZS-007' },
+            { product: 'F2XU_主叶片2_OL', moldNo: 'FZ-MJ-25014', machineNo: 'FZ-ZS-003' },
+            { product: 'F2XU_主叶片2_OR', moldNo: 'FZ-MJ-25014', machineNo: 'FZ-ZS-003' },
+            { product: 'F2XU_拨钮_OL', moldNo: 'FZ-MJ-25015', machineNo: 'FZ-ZS-003' },
+            { product: 'F2XU_拨钮_OR', moldNo: 'FZ-MJ-25015', machineNo: 'FZ-ZS-003' },
+            { product: 'D13 喷漆开关装饰件-素材', moldNo: 'FZ-MJ-25006', machineNo: 'FZ-ZS-002' },
+            { product: '673D中面框素材', moldNo: 'FZ-MJ-25004', machineNo: 'FZ-ZS-003' },
+            { product: '673D左喷漆面板素材', moldNo: 'FZ-MJ-25005', machineNo: 'FZ-ZS-005' },
+            { product: 'XC90_后左壳体_RL-新', moldNo: 'FZ-MJ-24002', machineNo: 'FZ-ZS-003' },
+            { product: 'XC90_后右壳体_RR-新', moldNo: 'FZ-MJ-24002', machineNo: 'FZ-ZS-003' },
+            { product: 'C121_MCM_主叶片1_CL', moldNo: 'FZ-MJ-24004', machineNo: 'FZ-ZS-006' },
+            { product: 'C121_MCM_主叶片1_CR', moldNo: 'FZ-MJ-24004', machineNo: 'FZ-ZS-006' },
+            { product: 'C121_MCM_主叶片2_CL', moldNo: 'FZ-MJ-24005', machineNo: 'FZ-ZS-006' },
+            { product: 'C121_MCM_主叶片2_CR', moldNo: 'FZ-MJ-24005', machineNo: 'FZ-ZS-006' },
+            { product: 'C121_MCM_主叶片支架1_CL', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_主叶片支架_C', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_主叶片支架2_CR', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_主叶片连杆_C', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_壳体_C', moldNo: 'FZ-MJ-24003', machineNo: 'FZ-ZS-003' },
+            { product: 'C121_MCM_次叶片1_CR', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片2_CR', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片3_CR', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片4_CR', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片5_CR', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片1_CL', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片2_CL', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片3_CL', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片4_CL', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片5_CL', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片6_CL', moldNo: 'FZ-MJ-24008', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片支架1_CR', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_次叶片支架2_CR', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_次叶片支架1_CL', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_次叶片支架2_CL', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_次叶片连杆_CR', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_次叶片连杆_CL', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_壳体_LH', moldNo: 'FZ-MJ-24011', machineNo: 'FZ-ZS-003' },
+            { product: 'C121_MCM_次叶片1_LH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片2_LH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片3_LH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片4_LH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片5_LH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片支架1_LH', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_次叶片支架2_LH', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_次叶片连杆_LH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_主叶片2_LH', moldNo: 'FZ-MJ-24014', machineNo: 'FZ-ZS-006' },
+            { product: 'C121_MCM_主叶片支架1_LH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_主叶片支架2_LH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_主叶片连杆_LH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_主叶片1_LH', moldNo: 'FZ-MJ-24012', machineNo: 'FZ-ZS-006' },
+            { product: 'C121_MCM_主叶片3_LH', moldNo: 'FZ-MJ-24012', machineNo: 'FZ-ZS-006' },
+            { product: 'C121_MCM_壳体_RH', moldNo: 'FZ-MJ-24011', machineNo: 'FZ-ZS-003' },
+            { product: 'C121_MCM_次叶片1_RH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片2_RH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片3_RH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片4_RH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片5_RH', moldNo: 'FZ-MJ-24013', machineNo: 'FZ-ZS-007' },
+            { product: 'C121_MCM_次叶片支架1_RH', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_次叶片支架2_RH', moldNo: 'FZ-MJ-24009', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_次叶片连杆_RH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_主叶片2_RH', moldNo: 'FZ-MJ-24014', machineNo: 'FZ-ZS-006' },
+            { product: 'C121_MCM_主叶片支架1_RH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_主叶片支架2_RH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_主叶片连杆_RH', moldNo: 'FZ-MJ-24007', machineNo: 'FZ-ZS-005' },
+            { product: 'C121_MCM_主叶片1_RH', moldNo: 'FZ-MJ-24012', machineNo: 'FZ-ZS-006' },
+            { product: 'C121_MCM_主叶片3_RH', moldNo: 'FZ-MJ-24012', machineNo: 'FZ-ZS-006' },
+            { product: 'G28杯托电镀饰环-素材', moldNo: 'FZ-MJ-25006', machineNo: 'FZ-ZS-004' },
+            { product: 'G18后中扶手 杯托电镀件-素材', moldNo: 'FZ-MJ-25007', machineNo: 'FZ-ZS-008' },
+            { product: '673D中面框素材-新', moldNo: 'FZ-MJ-25004', machineNo: 'FZ-ZS-003' },
+            { product: 'FL扬声器灯-165-铭牌-素材', moldNo: 'FZ-MJ-25018', machineNo: 'FZ-ZS-008' },
+            { product: 'FR扬声器灯-166-铭牌-素材', moldNo: 'FZ-MJ-25018', machineNo: 'FZ-ZS-008' },
+            { product: 'RL扬声器灯-167-铭牌-素材', moldNo: 'FZ-MJ-25019', machineNo: 'FZ-ZS-008' },
+            { product: 'ST2 左装饰件-喷漆素材', moldNo: 'FZ-MJ-25016', machineNo: 'FZ-ZS-005' },
+            { product: 'ST2 右装饰件-喷漆素材', moldNo: 'FZ-MJ-25016', machineNo: 'FZ-ZS-005' },
+            { product: '新X11反光碗L-素材', moldNo: 'FZ-MJ-26002', machineNo: 'FZ-ZS-008' },
+            { product: '新X11反光碗R-素材', moldNo: 'FZ-MJ-26002', machineNo: 'FZ-ZS-008' },
+            { product: '理想W05 左B柱出风口拨扭（双色）', moldNo: 'FZ-MJ-26004', machineNo: 'FZ-ZS-001' }
+        ];
+        // 精确匹配产品名称
+        const matched = moldRuleMap.find(r => r.product === productName);
+        if (matched) {
+            const moldEl = document.getElementById('mf_moldNo');
+            if (moldEl) moldEl.value = matched.moldNo;
             const machEl = document.getElementById('mf_machineNo');
             if (machEl) machEl.value = matched.machineNo;
         }
