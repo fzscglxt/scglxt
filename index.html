@@ -4514,9 +4514,9 @@ function renderOeePage() {
         const detailTbody = document.getElementById('oee-detail-tbody');
         detailTbody.innerHTML = filtered.map(r => `
             <tr>
-                <td><b>${r.date}</b></td>
-                <td>${r.workshop}</td>
-                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.product}">${r.product}</td>
+                <td style="text-align:center;"><b>${r.date}</b></td>
+                <td style="text-align:center;">${r.workshop}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;" title="${r.product}">${r.product}</td>
                 <td style="text-align:center;">${r.planTime}</td>
                 <td style="text-align:center;">${r.downTime}</td>
                 <td style="text-align:center;">${r.runTime}</td>
