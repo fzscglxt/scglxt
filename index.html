@@ -718,21 +718,16 @@
             </div>
 
             <!-- OEE指标卡片 -->
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:16px;">
-                <div class="panel" style="text-align:center;padding:24px;">
-                    <div style="font-size:13px;color:#666;margin-bottom:8px;">设备利用率</div>
-                    <div id="oee-utilization" style="font-size:36px;font-weight:700;color:#00897b;">--</div>
-                    <div style="font-size:11px;color:#999;margin-top:4px;">生产数量 / 计划数量</div>
-                </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px;">
                 <div class="panel" style="text-align:center;padding:24px;">
                     <div style="font-size:13px;color:#666;margin-bottom:8px;">可用率</div>
                     <div id="oee-availability" style="font-size:36px;font-weight:700;color:#1a73e8;">--</div>
-                    <div style="font-size:11px;color:#999;margin-top:4px;">生产数量 / 计划数量</div>
+                    <div style="font-size:11px;color:#999;margin-top:4px;">运行时间 / 计划时间</div>
                 </div>
                 <div class="panel" style="text-align:center;padding:24px;">
                     <div style="font-size:13px;color:#666;margin-bottom:8px;">性能率</div>
                     <div id="oee-performance" style="font-size:36px;font-weight:700;color:#7c1fa2;">--</div>
-                    <div style="font-size:11px;color:#999;margin-top:4px;">合格数量 / 生产数量</div>
+                    <div style="font-size:11px;color:#999;margin-top:4px;">标准周期×产量 / 运行时间</div>
                 </div>
                 <div class="panel" style="text-align:center;padding:24px;">
                     <div style="font-size:13px;color:#666;margin-bottom:8px;">质量率</div>
@@ -758,7 +753,6 @@
                                     <th style="padding:10px;border:1px solid #ddd;">计划数量</th>
                                     <th style="padding:10px;border:1px solid #ddd;">生产数量</th>
                                     <th style="padding:10px;border:1px solid #ddd;">合格数量</th>
-                                    <th style="padding:10px;border:1px solid #ddd;">设备利用率</th>
                                     <th style="padding:10px;border:1px solid #ddd;">可用率</th>
                                     <th style="padding:10px;border:1px solid #ddd;">性能率</th>
                                     <th style="padding:10px;border:1px solid #ddd;">质量率</th>
