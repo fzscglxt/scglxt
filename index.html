@@ -3130,6 +3130,31 @@ function onManualProductChange(ws, productName) {
     if (qadEl) qadEl.value = p.qadNo || '';
     const custEl = document.getElementById('mf_customerPartNo');
     if (custEl) custEl.value = p.customerPartNo || '';
+    
+    // 根据产品名称自动填充工装编号和机台编号（仅装配车间）
+    if (ws === 'assembly') {
+        const ruleMap = [
+            { match: 'ST2', toolingNo: 'FZ-GZ-008', machineNo: 'FZ-HJ-004' },
+            { match: ['UG', 'UEA', 'HXHA'], toolingNo: 'FZ-GZ-003', machineNo: 'FZ-HJ-003' },
+            { match: 'SC3E', toolingNo: 'FZ-GZ-006', machineNo: 'FZ-HJ-002' },
+            { match: 'C236', toolingNo: 'FZ-GZ-002', machineNo: 'FZ-HJ-001' },
+            { match: 'C673', toolingNo: 'FZ-GZ-001', machineNo: 'FZ-HJ-001' }
+        ];
+        let matched = null;
+        for (const rule of ruleMap) {
+            const matches = Array.isArray(rule.match) ? rule.match : [rule.match];
+            if (matches.some(m => productName.includes(m))) {
+                matched = rule;
+                break;
+            }
+        }
+        if (matched) {
+            const toolEl = document.getElementById('mf_toolingNo');
+            if (toolEl) toolEl.value = matched.toolingNo;
+            const machEl = document.getElementById('mf_machineNo');
+            if (machEl) machEl.value = matched.machineNo;
+        }
+    }
 }
 
 // 产品名称可搜索下拉：过滤产品列表
