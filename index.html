@@ -764,6 +764,35 @@
                     </div>
                 </div>
             </div>
+
+            <!-- OEE生产明细 -->
+            <div class="panel" style="margin-top:16px;">
+                <div class="panel-header"><span class="panel-title">📋 OEE生产明细</span></div>
+                <div class="panel-body">
+                    <div class="table-wrap">
+                        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                            <thead>
+                                <tr style="background:#f5f5f5;">
+                                    <th style="padding:8px;border:1px solid #ddd;">日期</th>
+                                    <th style="padding:8px;border:1px solid #ddd;">车间</th>
+                                    <th style="padding:8px;border:1px solid #ddd;">产品名称</th>
+                                    <th style="padding:8px;border:1px solid #ddd;">计划时间(分)</th>
+                                    <th style="padding:8px;border:1px solid #ddd;">停机时间(分)</th>
+                                    <th style="padding:8px;border:1px solid #ddd;">运行时间(分)</th>
+                                    <th style="padding:8px;border:1px solid #ddd;">标准周期(秒)</th>
+                                    <th style="padding:8px;border:1px solid #ddd;">总产量</th>
+                                    <th style="padding:8px;border:1px solid #ddd;">合格产量</th>
+                                    <th style="padding:8px;border:1px solid #ddd;">可用率</th>
+                                    <th style="padding:8px;border:1px solid #ddd;">性能率</th>
+                                    <th style="padding:8px;border:1px solid #ddd;">质量率</th>
+                                    <th style="padding:8px;border:1px solid #ddd;">OEE</th>
+                                </tr>
+                            </thead>
+                            <tbody id="oee-detail-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- ============ 9B. 甘特图 ============ -->
@@ -4401,6 +4430,53 @@ function renderOeePage() {
             <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.performance>=95?'background:#e6f4ea;color:#1e8e3e;':d.performance>=80?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.performance}%</span></td>
             <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.quality>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${d.quality}%</span></td>
             <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.oee>=85?'background:#e6f4ea;color:#1e8e3e;':d.oee>=60?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.oee}%</span></td>
+        </tr>
+    `).join('');
+
+    // OEE明细表格：从三个车间汇总所有记录
+    const detailRows = [];
+    wss.forEach(ws => {
+        DB[ws].filter(r => r.date >= start && r.date <= end).forEach(r => {
+            const prod = +r.produceQty || 0;
+            const pass = +r.passQty || 0;
+            const quality = prod > 0 ? +(pass / prod * 100).toFixed(1) : 0;
+            detailRows.push({
+                date: r.date,
+                workshop: WORKSHOP_CONFIG[ws].name,
+                product: r.productName || '-',
+                planTime: planTime,
+                downTime: downTime,
+                runTime: runTime,
+                stdCycle: stdCycle * 60, // 分转秒
+                prod: prod,
+                pass: pass,
+                availability: totalAvailability,
+                performance: Math.min(100, stdCycle * prod / runTime * 100).toFixed(1),
+                quality: quality,
+                oee: +(totalAvailability * Math.min(100, stdCycle * prod / runTime * 100) * quality / 10000).toFixed(1)
+            });
+        });
+    });
+    
+    // 按日期倒序
+    detailRows.sort((a,b) => b.date.localeCompare(a.date));
+    
+    const detailTbody = document.getElementById('oee-detail-tbody');
+    detailTbody.innerHTML = detailRows.map(r => `
+        <tr>
+            <td><b>${r.date}</b></td>
+            <td>${r.workshop}</td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.product}">${r.product}</td>
+            <td style="text-align:right;">${r.planTime}</td>
+            <td style="text-align:right;">${r.downTime}</td>
+            <td style="text-align:right;">${r.runTime}</td>
+            <td style="text-align:right;">${r.stdCycle.toFixed(0)}</td>
+            <td style="text-align:right;">${r.prod.toLocaleString()}</td>
+            <td style="text-align:right;">${r.pass.toLocaleString()}</td>
+            <td style="text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.availability>=90?'background:#e6f4ea;color:#1e8e3e;':r.availability>=75?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.availability}%</span></td>
+            <td style="text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.performance>=95?'background:#e6f4ea;color:#1e8e3e;':r.performance>=80?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.performance}%</span></td>
+            <td style="text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.quality>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${r.quality}%</span></td>
+            <td style="text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;${r.oee>=85?'background:#e6f4ea;color:#1e8e3e;':r.oee>=60?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${r.oee}%</span></td>
         </tr>
     `).join('');
 }
