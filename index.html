@@ -7051,6 +7051,8 @@ function confirmBomImport() {
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
     initDB();
+    // 立即加载跨系统数据（设备、工装、模具），不等云同步完成
+    loadCrossSystemData();
     if (window.localBackup && typeof localBackup.init === 'function') { try { localBackup.init(); } catch(e) { console.warn(e); } }
     setupDragDrop();
     // —— HTML 属性 onclick/onchange 需要的全局函数 DOMContentLoaded 后再强制挂一次兜底 ——
@@ -7080,8 +7082,6 @@ window.addEventListener('DOMContentLoaded', () => {
         startCloudPolling();
         // 已登录自动进入
         if (getCurrentUser()) enterApp();
-        // 异步加载跨系统数据（设备、工装、模具）
-        loadCrossSystemData();
     });
 });
 
