@@ -4440,7 +4440,7 @@ function renderOeePage() {
     const tbody = document.getElementById('oee-workshop-tbody');
     tbody.innerHTML = workshopData.map(d => `
         <tr>
-            <td><b>${d.name}</b></td>
+            <td style="text-align:center;"><b>${d.name}</b></td>
             <td style="text-align:center;">${d.plan.toLocaleString()}</td>
             <td style="text-align:center;">${d.prod.toLocaleString()}</td>
             <td style="text-align:center;">${d.pass.toLocaleString()}</td>
