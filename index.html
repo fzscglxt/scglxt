@@ -4342,12 +4342,15 @@ function renderOeePage() {
         });
     }
     
-    // 辅助函数：计算开始时间到结束时间的分钟数
+    // 辅助函数：计算开始时间到结束时间的分钟数（支持跨天，如14:00到次日4:00）
     function calcPlanMinutes(startTime, endTime) {
         if (!startTime || !endTime) return 0;
         const [sh, sm] = startTime.split(':').map(Number);
         const [eh, em] = endTime.split(':').map(Number);
-        return (eh * 60 + em) - (sh * 60 + sm);
+        let diff = (eh * 60 + em) - (sh * 60 + sm);
+        // 跨天处理：结束时间小于开始时间，说明到次日了，加1440分钟
+        if (diff < 0) diff += 1440;
+        return diff;
     }
     
     // 汇总数据
