@@ -693,7 +693,12 @@
             </div>
 
             <!-- OEE指标卡片 -->
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px;">
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:16px;">
+                <div class="panel" style="text-align:center;padding:24px;">
+                    <div style="font-size:13px;color:#666;margin-bottom:8px;">设备利用率</div>
+                    <div id="oee-utilization" style="font-size:36px;font-weight:700;color:#00897b;">--</div>
+                    <div style="font-size:11px;color:#999;margin-top:4px;">生产数量 / 计划数量</div>
+                </div>
                 <div class="panel" style="text-align:center;padding:24px;">
                     <div style="font-size:13px;color:#666;margin-bottom:8px;">可用率</div>
                     <div id="oee-availability" style="font-size:36px;font-weight:700;color:#1a73e8;">--</div>
@@ -728,6 +733,7 @@
                                     <th style="padding:10px;border:1px solid #ddd;">计划数量</th>
                                     <th style="padding:10px;border:1px solid #ddd;">生产数量</th>
                                     <th style="padding:10px;border:1px solid #ddd;">合格数量</th>
+                                    <th style="padding:10px;border:1px solid #ddd;">设备利用率</th>
                                     <th style="padding:10px;border:1px solid #ddd;">可用率</th>
                                     <th style="padding:10px;border:1px solid #ddd;">性能率</th>
                                     <th style="padding:10px;border:1px solid #ddd;">质量率</th>
@@ -4314,10 +4320,11 @@ function renderOeePage() {
             prod += +r.produceQty || 0;
             pass += +r.passQty || 0;
         });
+        const utilization = plan > 0 ? +(prod / plan * 100).toFixed(1) : 0;
         const availability = prod > 0 ? (plan > 0 ? +(prod / plan * 100).toFixed(1) : 100) : 0;
         const performance = prod > 0 ? +(pass / prod * 100).toFixed(1) : 0;
         const quality = prod > 0 ? +(pass / prod * 100).toFixed(1) : 0;
-        const oee = +(availability * performance * quality / 10000).toFixed(1);
+        const oee = +(utilization * performance * quality / 10000).toFixed(1);
         
         totalPlan += plan;
         totalProd += prod;
@@ -4326,17 +4333,19 @@ function renderOeePage() {
         workshopData.push({
             name: WORKSHOP_CONFIG[ws].name,
             plan, prod, pass,
-            availability, performance, quality, oee
+            utilization, availability, performance, quality, oee
         });
     });
     
     // 计算总体指标
+    const totalUtilization = totalPlan > 0 ? +(totalProd / totalPlan * 100).toFixed(1) : 0;
     const totalAvailability = totalProd > 0 ? (totalPlan > 0 ? +(totalProd / totalPlan * 100).toFixed(1) : 100) : 0;
     const totalPerformance = totalProd > 0 ? +(totalPass / totalProd * 100).toFixed(1) : 0;
     const totalQuality = totalProd > 0 ? +(totalPass / totalProd * 100).toFixed(1) : 0;
-    const totalOee = +(totalAvailability * totalPerformance * totalQuality / 10000).toFixed(1);
+    const totalOee = +(totalUtilization * totalPerformance * totalQuality / 10000).toFixed(1);
     
     // 更新指标卡片
+    document.getElementById('oee-utilization').textContent = totalUtilization + '%';
     document.getElementById('oee-availability').textContent = totalAvailability + '%';
     document.getElementById('oee-performance').textContent = totalPerformance + '%';
     document.getElementById('oee-quality').textContent = totalQuality + '%';
@@ -4350,6 +4359,7 @@ function renderOeePage() {
             <td style="text-align:right;">${d.plan.toLocaleString()}</td>
             <td style="text-align:right;">${d.prod.toLocaleString()}</td>
             <td style="text-align:right;">${d.pass.toLocaleString()}</td>
+            <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.utilization>=90?'background:#e6f4ea;color:#1e8e3e;':d.utilization>=70?'background:#fef7e0;color:#e37400;':'background:#fce8e6;color:#d93025;'}">${d.utilization}%</span></td>
             <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.availability>=95?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${d.availability}%</span></td>
             <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.performance>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${d.performance}%</span></td>
             <td style="text-align:right;"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;${d.quality>=98?'background:#e6f4ea;color:#1e8e3e;':'background:#fce8e6;color:#d93025;'}">${d.quality}%</span></td>
