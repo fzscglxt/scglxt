@@ -4332,17 +4332,6 @@ function renderOeePage() {
     const wsSel = document.getElementById('oee-workshop').value;
     const wss = wsSel === 'all' ? ['assembly', 'injection', 'silicone'] : [wsSel];
     
-    // 计算计划时间：开始到结束的天数 × 每天480分钟（8小时）
-    const startDt = new Date(start);
-    const endDt = new Date(end);
-    const days = Math.round((endDt - startDt) / (1000 * 60 * 60 * 24)) + 1;
-    const planTime = days * 480; // 每天8小时=480分钟
-    
-    // 汇总数据
-    let totalPlan = 0, totalProd = 0, totalPass = 0;
-    let totalStdTime = 0; // 总标准时间（分钟）
-    const workshopData = [];
-    
     // 产品标准工时映射：从产品信息表读取
     const stdHoursMap = {};
     if (DB.products) {
@@ -4353,38 +4342,76 @@ function renderOeePage() {
         });
     }
     
+    // 辅助函数：计算开始时间到结束时间的分钟数
+    function calcPlanMinutes(startTime, endTime) {
+        if (!startTime || !endTime) return 0;
+        const [sh, sm] = startTime.split(':').map(Number);
+        const [eh, em] = endTime.split(':').map(Number);
+        return (eh * 60 + em) - (sh * 60 + sm);
+    }
+    
+    // 汇总数据
+    let totalPlanQty = 0, totalProd = 0, totalPass = 0;
+    let totalPlanTime = 0, totalRunTime = 0, totalDownTime = 0;
+    const workshopData = [];
+    
     wss.forEach(ws => {
-        let plan = 0, prod = 0, pass = 0, stdTime = 0;
+        let planQty = 0, prod = 0, pass = 0;
+        let planTime = 0, runTime = 0, downTime = 0;
+        
         DB[ws].filter(r => r.date >= start && r.date <= end).forEach(r => {
-            plan += +r.planQty || 0;
+            planQty += +r.planQty || 0;
             prod += +r.produceQty || 0;
             pass += +r.passQty || 0;
-            // 标准周期：从产品信息读取，默认30秒
-            const stdSec = stdHoursMap[r.productName] || 30;
-            stdTime += (stdSec * prod) / 60; // 转成分钟
+            
+            // 计划时间：开始时间到结束时间的分钟数
+            const pt = calcPlanMinutes(r.startTime, r.endTime);
+            planTime += pt;
+            
+            // 运行时间：实际生产小时数 × 60 = 分钟
+            const rt = (+r.actualHours || 0) * 60;
+            runTime += rt;
+            
+            // 停机时间：计划时间 - 运行时间
+            downTime += Math.max(0, pt - rt);
         });
         
         // 标准OEE计算公式
-        const availability = planTime > 0 ? Math.min(100, +(stdTime / planTime * 100).toFixed(1)) : 0;
-        const performance = 100; // 按标准周期生产，性能率100%
+        const availability = planTime > 0 ? +(runTime / planTime * 100).toFixed(1) : 0;
+        // 性能率 = (标准周期秒 × 产量) / (运行时间分钟 × 60)
+        let stdTime = 0;
+        DB[ws].filter(r => r.date >= start && r.date <= end).forEach(r => {
+            const stdSec = stdHoursMap[r.productName] || 30;
+            stdTime += stdSec * (+r.produceQty || 0);
+        });
+        const performance = runTime > 0 ? Math.min(100, +(stdTime / (runTime * 60) * 100).toFixed(1)) : 0;
         const quality = prod > 0 ? +(pass / prod * 100).toFixed(1) : 0;
         const oee = +(availability * performance * quality / 10000).toFixed(1);
         
-        totalPlan += plan;
+        totalPlanQty += planQty;
         totalProd += prod;
         totalPass += pass;
-        totalStdTime += stdTime;
+        totalPlanTime += planTime;
+        totalRunTime += runTime;
+        totalDownTime += downTime;
         
         workshopData.push({
             name: WORKSHOP_CONFIG[ws].name,
-            plan, prod, pass,
+            plan: planQty, prod, pass,
             availability, performance, quality, oee
         });
     });
     
     // 计算总体指标
-    const totalAvailability = planTime > 0 ? Math.min(100, +(totalStdTime / planTime * 100).toFixed(1)) : 0;
-    const totalPerformance = 100;
+    const totalAvailability = totalPlanTime > 0 ? +(totalRunTime / totalPlanTime * 100).toFixed(1) : 0;
+    let totalStdTime = 0;
+    wss.forEach(ws => {
+        DB[ws].filter(r => r.date >= start && r.date <= end).forEach(r => {
+            const stdSec = stdHoursMap[r.productName] || 30;
+            totalStdTime += stdSec * (+r.produceQty || 0);
+        });
+    });
+    const totalPerformance = totalRunTime > 0 ? Math.min(100, +(totalStdTime / (totalRunTime * 60) * 100).toFixed(1)) : 0;
     const totalQuality = totalProd > 0 ? +(totalPass / totalProd * 100).toFixed(1) : 0;
     const totalOee = +(totalAvailability * totalPerformance * totalQuality / 10000).toFixed(1);
     
@@ -4417,23 +4444,31 @@ function renderOeePage() {
             const pass = +r.passQty || 0;
             const quality = prod > 0 ? +(pass / prod * 100).toFixed(1) : 0;
             const stdSec = stdHoursMap[r.productName] || 30;
-            const runTime = (stdSec * prod) / 60; // 分钟
+            
+            // 计划时间：开始到结束分钟数
+            const planTime = calcPlanMinutes(r.startTime, r.endTime);
+            // 运行时间：实际生产小时 × 60
+            const runTime = (+r.actualHours || 0) * 60;
+            // 停机时间：计划 - 运行
             const downTime = Math.max(0, planTime - runTime);
-            const availability = planTime > 0 ? Math.min(100, +(runTime / planTime * 100).toFixed(1)) : 0;
-            const oee = +(availability * 100 * quality / 10000).toFixed(1);
+            
+            const availability = planTime > 0 ? +(runTime / planTime * 100).toFixed(1) : 0;
+            const perfRaw = runTime > 0 ? (stdSec * prod) / (runTime * 60) * 100 : 0;
+            const performance = Math.min(100, +perfRaw.toFixed(1));
+            const oee = +(availability * performance * quality / 10000).toFixed(1);
             
             detailRows.push({
                 date: r.date,
                 workshop: WORKSHOP_CONFIG[ws].name,
                 product: r.productName || '-',
                 planTime: planTime,
-                downTime: Math.round(downTime),
-                runTime: Math.round(runTime),
+                downTime: downTime,
+                runTime: runTime,
                 stdCycle: stdSec,
                 prod: prod,
                 pass: pass,
                 availability: availability,
-                performance: 100,
+                performance: performance,
                 quality: quality,
                 oee: oee
             });
