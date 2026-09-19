@@ -3597,6 +3597,37 @@ function editRecord(ws, id) {
     document.getElementById('modal-record').classList.add('show');
 }
 
+// 推送全量生产事件到模具管理系统，按使用周期规则重建模具/工装出入库（失败静默，不影响生产记录保存）
+async function syncMoldUsage() {
+    try {
+        const toEvents = (arr, codeField) => (arr || [])
+            .filter(r => r && r[codeField] && r.machineNo && r.date)
+            .map(r => ({
+                recordId: r.id,
+                date: String(r.date).slice(0, 10),
+                machine: r.machineNo,
+                code: r[codeField],
+                productName: r.productName || '',
+                qty: Number(r.produceQty) || 0,
+                duration: Number(r.actualHours) || 0,
+                shift: r.shift || ''
+            }));
+        const body = {
+            events: {
+                mold: toEvents(DB.injection, 'moldNo'),
+                fixture: toEvents(DB.assembly, 'toolingNo')
+            }
+        };
+        await fetch('https://fz-mold-mgmt.pages.dev/api/db', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+    } catch (e) {
+        console.warn('syncMoldUsage error:', e);
+    }
+}
+
 function saveRecord() {
     const ws = document.getElementById('record-form-container').dataset.ws;
     const id = document.getElementById('record-id').value;
@@ -3636,6 +3667,7 @@ function saveRecord() {
     if (!isEdit) { DB[ws].push(obj); addLog('新增', `新增${cfg.name}记录：${obj.productName}`, ws); }
     else { addLog('编辑', `编辑${cfg.name}记录：${obj.productName}（${obj.date}）`, ws); }
     saveDB();
+    syncMoldUsage();
     closeModal('modal-record');
     showToast('✅ 保存成功', 'success');
     // 刷新当前视图
@@ -3652,6 +3684,7 @@ function deleteRecord(ws, id) {
     showConfirm('删除确认', `确认删除 ${WORKSHOP_CONFIG[ws].name} 这条记录吗？\n${r.date} ${r.shift || ''} - ${r.productName}\n（删除后不可恢复）`, () => {
         DB[ws] = DB[ws].filter(x => x.id !== id);
         saveDB();
+        syncMoldUsage();
         addLog('删除', `删除${WORKSHOP_CONFIG[ws].name}记录：${r.productName}（${r.date}）`, ws);
         showToast('✅ 已删除', 'success');
         renderHistoryTable();
