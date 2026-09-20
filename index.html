@@ -1190,7 +1190,7 @@ function getDefaultDB() {
         version: 2, // 升级到 v2（products 新 schema + 新增 boms 表）
         lastBackupAt: null,
         users: [
-            { id: 'u1', username: 'admin', password: '123456', name: '系统管理员', role: 'admin', createdAt: formatDate(new Date()), lastLogin: null }
+            { id: 'u1', username: 'admin', password: '88888888aa', name: '系统管理员', role: 'admin', createdAt: formatDate(new Date()), lastLogin: null }
         ],
         assembly: [], // 装配车间
         injection: [], // 注塑车间
@@ -5467,11 +5467,11 @@ function saveUser() {
 function resetPassword(id) {
     const u = DB.users.find(x => x.id === id);
     if (!u) return;
-    showConfirm('重置密码', `确认将用户「${u.name}(${u.username})」的密码重置为 123456 吗？`, () => {
-        u.password = '123456';
+    showConfirm('重置密码', `确认将用户「${u.name}(${u.username})」的密码重置为 88888888aa 吗？`, () => {
+        u.password = '88888888aa';
         saveDB();
         addLog('编辑', `重置用户密码：${u.username}`);
-        showToast('✅ 密码已重置为 123456', 'success');
+        showToast('✅ 密码已重置为 88888888aa', 'success');
     });
 }
 
