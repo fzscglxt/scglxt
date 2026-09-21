@@ -601,7 +601,7 @@ input[type=file]::file-selector-button:hover{background:var(--primary-light);col
             </div>
             <div class="stat-grid" id="dashboard-stats"></div>
             <div class="chart-grid">
-                <div class="panel" style="display:block;"><div class="panel-header"><span class="panel-title">📊 三车间产量与合格率对比</span></div><div class="panel-body" style="display:block;padding:16px;"><div class="chart-container" style="height:300px;"><canvas id="chart-workshop-compare"></canvas></div></div></div>
+                <div class="panel" style="display:block;"><div class="panel-header"><span class="panel-title">📊 三车间合格率与计划达成率对比</span></div><div class="panel-body" style="display:block;padding:16px;"><div class="chart-container" style="height:300px;"><canvas id="chart-workshop-compare"></canvas></div></div></div>
                 <!-- 需求12：标题改名"产量趋势" -->
                 <div class="panel" style="display:block;"><div class="panel-header"><span class="panel-title">📈 产量趋势</span></div><div class="panel-body" style="display:block;padding:16px;"><div class="chart-container" style="height:300px;"><canvas id="chart-7day-trend"></canvas></div></div></div>
             </div>
@@ -2571,49 +2571,49 @@ function renderDashboard() {
         </div>
     `).join('');
 
-    // 需求10：三车间产量与合格率对比 —— 分 dataset 控制数值标签，避免产量条形与合格率折线标签重叠/重复
+    // 需求10：三车间合格率与计划达成率对比（双折线，单百分比轴，无数据车间断点）
     const ctx1 = document.getElementById('chart-workshop-compare');
     if (chartWc) chartWc.destroy();
+    const _wsKeys = ['assembly', 'injection', 'silicone'];
+    const _passLine = _wsKeys.map(k => wsRange[k].prod > 0 ? wsRange[k].passRate : null);
+    const _planLine = _wsKeys.map(k => wsRange[k].plan > 0 ? wsRange[k].planRate : null);
     chartWc = new Chart(ctx1, {
-        type: 'bar',
+        type: 'line',
         plugins: window.ChartDataLabels ? [ChartDataLabels] : [],
         data: {
             labels: ['装配车间', '注塑车间', '硅胶车间'],
             datasets: [
                 {
-                    type: 'bar', label: '产量', yAxisID: 'y', borderRadius: 6,
-                    data: [wsRange.assembly.prod, wsRange.injection.prod, wsRange.silicone.prod],
-                    backgroundColor: '#1a73e8',
-                    // 产量 bar：数值显示在 bar 顶部外部
+                    label: '合格率 %', tension: 0.3, spanGaps: false,
+                    data: _passLine,
+                    borderColor: '#4ade80', backgroundColor: '#4ade80',
+                    pointRadius: 5, pointBackgroundColor: '#0d1f3c', pointBorderWidth: 2, pointBorderColor: '#4ade80',
                     datalabels: {
-                        display: 'auto',
-                        anchor: 'end', align: 'top', offset: 2,
-                        color: '#1a73e8', font: { weight: 700, size: 11 },
-                        formatter: (v) => v == null || isNaN(+v) ? '' : Number(v).toLocaleString()
+                        display: 'auto', anchor: 'end', align: 'top', offset: 6,
+                        color: '#4ade80', font: { weight: 700, size: 11 },
+                        backgroundColor: 'rgba(13,31,60,.85)', borderRadius: 4, padding: { top: 1, right: 4, bottom: 1, left: 4 },
+                        formatter: (v) => (v == null || isNaN(+v)) ? '' : `${Number(v)}%`
                     }
                 },
                 {
-                    type: 'line', label: '合格率 %', yAxisID: 'y1', tension: 0.3,
-                    data: [wsRange.assembly.passRate, wsRange.injection.passRate, wsRange.silicone.passRate],
-                    borderColor: '#34a853', backgroundColor: '#34a853',
-                    pointRadius: 6, pointBackgroundColor: '#fff', pointBorderWidth: 2, pointBorderColor: '#34a853',
-                    // 合格率 line：数值显示在点上方，颜色为绿色，右对齐并加 % 后缀
+                    label: '计划达成率 %', tension: 0.3, spanGaps: false,
+                    data: _planLine,
+                    borderColor: '#38bdf8', backgroundColor: '#38bdf8',
+                    pointRadius: 5, pointBackgroundColor: '#0d1f3c', pointBorderWidth: 2, pointBorderColor: '#38bdf8',
                     datalabels: {
-                        display: 'auto',
-                        anchor: 'end', align: 'top', offset: 8,
-                        color: '#34a853', font: { weight: 700, size: 11 },
-                        backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 4, padding: { top: 1, right: 4, bottom: 1, left: 4 },
+                        display: 'auto', anchor: 'end', align: 'bottom', offset: 6,
+                        color: '#38bdf8', font: { weight: 700, size: 11 },
+                        backgroundColor: 'rgba(13,31,60,.85)', borderRadius: 4, padding: { top: 1, right: 4, bottom: 1, left: 4 },
                         formatter: (v) => (v == null || isNaN(+v)) ? '' : `${Number(v)}%`
                     }
                 }
             ]
         },
         options: {
-            responsive: true, maintainAspectRatio: false, layout: { padding: { top: 28, right: 28 } },
-            scales: { y: { beginAtZero: true, position: 'left', title: { display: true, text: '产量（件）' } }, y1: { beginAtZero: true, position: 'right', min: 50, max: 100, title: { display: true, text: '合格率（%）' }, grid: { drawOnChartArea: false } } },
+            responsive: true, maintainAspectRatio: false, layout: { padding: { top: 28, right: 28, bottom: 8 } },
+            scales: { y: { beginAtZero: true, min: 0, max: 110, ticks: { callback: (v) => v + '%' }, title: { display: true, text: '比率（%）' } } },
             plugins: {
                 legend: { position: 'bottom' },
-                // 全局默认关闭 datalabels，由每个 dataset 独立控制（防止重复渲染）
                 datalabels: { display: false }
             }
         }
