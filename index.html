@@ -6240,7 +6240,7 @@ function renderProductTable() {
     const wsBadge = { assembly: 'badge-primary', injection: 'badge-warning', silicone: 'badge-success' };
     const cols = [
         '<label style="margin:0;display:inline-flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" onchange="toggleProductAll(this)" title="全选本页">选择</label>',
-        '产品分类', 'QAD号', '客户零件号', '产品名称', '计量单位', '生产车间', '领料车间', '标准工时', '录入时间', '操作'
+        '产品分类', 'QAD号', '客户零件号', '产品名称', '计量单位', '生产车间', '领料车间', '标准工时', '机台编号', '模具/工装编号', '录入时间', '操作'
     ];
     const allCheckedOnPage = pageList.length > 0 && pageList.every(p => selectedProductIds.has(p.id));
     const tbody = pageList.length === 0 ? renderEmptyTable(cols.length) : pageList.map(p => {
@@ -6255,6 +6255,8 @@ function renderProductTable() {
             <td><span class="badge ${wsBadge[p.prodWorkshop] || 'badge-normal'}">${workshopLabel(p.prodWorkshop) || '<span style="color:#9aa0a6;">未填</span>'}</span></td>
             <td><span class="badge ${wsBadge[p.issueWorkshop] || 'badge-normal'}">${workshopLabel(p.issueWorkshop) || '<span style="color:#9aa0a6;">未填</span>'}</span></td>
             <td style="text-align:right;color:#1a73e8;font-weight:600;">${stdH === '' ? '<span style="color:#9aa0a6;">—</span>' : stdH}</td>
+            <td style="text-align:center;white-space:nowrap;">${p.machineNo ? '<code>'+String(p.machineNo)+'</code>' : '<span style="color:#9aa0a6;">—</span>'}</td>
+            <td style="text-align:center;white-space:nowrap;">${p.moldNo ? '<code>'+String(p.moldNo)+'</code>' : '<span style="color:#9aa0a6;">—</span>'}</td>
             <td style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">${formatDateTime(p.createdAt)}</td>
             <td style="white-space:nowrap;">
                 <button class="btn btn-sm btn-outline" onclick="openProductModal('${p.id}')">编辑</button>
@@ -6278,11 +6280,21 @@ let editingProductId = null;
 function openProductModal(id) {
     editingProductId = id || null;
     const title = id ? '编辑产品物料' : '新增产品物料';
-    const p = id ? (DB.products || []).find(x => x.id === id) : { qadNo: '', productName: '', category: '', unit: 'PC', prodWorkshop: '', issueWorkshop: '', standardHours: '', customerPartNo: '' };
+    const p = id ? (DB.products || []).find(x => x.id === id) : { qadNo: '', productName: '', category: '', unit: 'PC', prodWorkshop: '', issueWorkshop: '', standardHours: '', customerPartNo: '', machineNo: '', moldNo: '' };
     const esc = (s) => String(s == null ? '' : s).replace(/\"/g, '&quot;');
     const catList = (() => {
         const s = new Set();
         (DB.products || []).forEach(pp => { const c = String(pp.category || '').trim(); if (c) s.add(c); });
+        return [...s].sort().map(x => `<option value="${x.replace(/\"/g,'&quot;')}"></option>`).join('');
+    })();
+    const machineList = (() => {
+        const s = new Set();
+        (DB.products || []).forEach(pp => { const v = String(pp.machineNo || '').trim(); if (v) s.add(v); });
+        return [...s].sort().map(x => `<option value="${x.replace(/\"/g,'&quot;')}"></option>`).join('');
+    })();
+    const moldList = (() => {
+        const s = new Set();
+        (DB.products || []).forEach(pp => { const v = String(pp.moldNo || '').trim(); if (v) s.add(v); });
         return [...s].sort().map(x => `<option value="${x.replace(/\"/g,'&quot;')}"></option>`).join('');
     })();
     const body = `
@@ -6322,6 +6334,14 @@ function openProductModal(id) {
                 <option value="silicone" ${p.issueWorkshop==='silicone'?'selected':''}>硅胶车间</option>
             </select>
         </div>
+        <div class="detail-item"><span class="detail-label">机台编号</span>
+            <input type="text" id="pm-machineNo" style="width:100%;padding:8px;" placeholder="如 FZ-HJ-001 / FZ-ZS-003（选填）" list="pm-machine-list" value="${esc(p.machineNo)}">
+            <datalist id="pm-machine-list">${machineList}</datalist>
+        </div>
+        <div class="detail-item"><span class="detail-label">模具/工装编号</span>
+            <input type="text" id="pm-moldNo" style="width:100%;padding:8px;" placeholder="模具 FZ-MJ-xxxxx / 工装 FZ-GZ-xxx（选填）" list="pm-mold-list" value="${esc(p.moldNo)}">
+            <datalist id="pm-mold-list">${moldList}</datalist>
+        </div>
     </div>`;
     document.getElementById('product-modal-title').textContent = title;
     document.getElementById('product-form-container').innerHTML = body;
@@ -6342,6 +6362,8 @@ function saveProduct() {
     }
     const prodWs = document.getElementById('pm-prodWs').value;
     const issueWs = document.getElementById('pm-issueWs').value;
+    const machineNo = (document.getElementById('pm-machineNo')?.value || '').trim();
+    const moldNo = (document.getElementById('pm-moldNo')?.value || '').trim();
     if (!qad) return showToast('请填写 QAD号', 'warning');
     if (!name) return showToast('请填写 产品名称', 'warning');
     const list = DB.products || [];
@@ -6353,11 +6375,11 @@ function saveProduct() {
     if (editingProductId) {
         const p = list.find(x => x.id === editingProductId);
         if (!p) return showToast('记录不存在', 'error');
-        Object.assign(p, { qadNo: qad, productName: name, customerPartNo, category, unit, prodWorkshop: prodWs, issueWorkshop: issueWs, standardHours });
+        Object.assign(p, { qadNo: qad, productName: name, customerPartNo, category, unit, prodWorkshop: prodWs, issueWorkshop: issueWs, standardHours, machineNo, moldNo });
         addLog('编辑', prodWs || null, `编辑产品物料：${qad} / ${name}`);
     } else {
         const id = 'prod_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
-        list.push({ id, qadNo: qad, productName: name, customerPartNo, category, unit, prodWorkshop: prodWs, issueWorkshop: issueWs, standardHours, createdAt: now });
+        list.push({ id, qadNo: qad, productName: name, customerPartNo, category, unit, prodWorkshop: prodWs, issueWorkshop: issueWs, standardHours, machineNo, moldNo, createdAt: now });
         addLog('新增', prodWs || null, `新增产品物料：${qad} / ${name}`);
     }
     saveDB();
@@ -6395,11 +6417,13 @@ function exportProductsXLSX() {
         '生产车间': workshopLabel(p.prodWorkshop) || '',
         '领料车间': workshopLabel(p.issueWorkshop) || '',
         '标准工时': (p.standardHours === '' || p.standardHours == null) ? '' : Number(p.standardHours),
+        '机台编号': p.machineNo || '',
+        '模具/工装编号': p.moldNo || '',
         '录入时间': p.createdAt || ''
     }));
     if (rows.length === 0) return showToast('暂无产品数据可导出', 'warning');
-    const ws = XLSX.utils.json_to_sheet(rows, { header: ['QAD号','客户零件号','产品名称','产品分类','计量单位','生产车间','领料车间','标准工时','录入时间'] });
-    ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 42 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 20 }];
+    const ws = XLSX.utils.json_to_sheet(rows, { header: ['QAD号','客户零件号','产品名称','产品分类','计量单位','生产车间','领料车间','标准工时','机台编号','模具/工装编号','录入时间'] });
+    ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 42 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 20 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '物料信息');
     XLSX.writeFile(wb, `产品物料清单_第三版_${formatDate(new Date())}.xlsx`);
@@ -6434,6 +6458,8 @@ function handleProdImport(ev) {
                     else if (kk.includes('生产车间') || kk.includes('生产厂')) o.prodWs = r[k];
                     else if (kk.includes('领料车间') || kk.includes('发料')) o.issueWs = r[k];
                     else if (kk.includes('标准工时') || kk.includes('工时')) o.hours = r[k];
+                    else if (kk.includes('机台')) o.machineNo = r[k];
+                    else if (kk.includes('模具') || kk.includes('工装')) o.moldNo = r[k];
                 });
                 return o;
             });
@@ -6453,6 +6479,8 @@ function handleProdImport(ev) {
                 const issueWsRaw = String(r.issueWs || '').trim();
                 const issueWs = normalizeWorkshopKey(issueWsRaw);
                 if (issueWsRaw && !issueWs) errors.push(`领料车间【${issueWsRaw}】无法识别`);
+                const machineNo = String(r.machineNo || '').trim();
+                const moldNo = String(r.moldNo || '').trim();
                 let standardHours = '';
                 if (r.hours !== '' && r.hours !== null && r.hours !== undefined) {
                     const h = Number(r.hours);
@@ -6476,7 +6504,7 @@ function handleProdImport(ev) {
                     qadNo: qad, customerPartNo, productName: name, category, unit,
                     prodWorkshop: prodWs, prodWorkshopLabel: prodWs ? WORKSHOP_KEY2CN[prodWs] : prodWsRaw,
                     issueWorkshop: issueWs, issueWorkshopLabel: issueWs ? WORKSHOP_KEY2CN[issueWs] : issueWsRaw,
-                    standardHours, errors
+                    standardHours, machineNo, moldNo, errors
                 };
             });
             showProdImportPreview(f.name, rowsObj.length);
@@ -6497,7 +6525,7 @@ function showProdImportPreview(fileName, totalParsed) {
          &nbsp;|&nbsp; <span style="color:#34a853;font-weight:600;">✅ 可录入 ${ok.length}</span>
          &nbsp;|&nbsp; <span style="color:#ea4335;font-weight:600;">❌ 异常 ${bad.length}</span>
          <div style="margin-top:8px;">${bad.length ? '异常行将自动跳过，不会导入数据库。' : '全部校验通过，可确认导入。'}</div>`;
-    const cols = ['行号','QAD号','客户零件号','产品名称','分类','单位','生产车间','领料车间','标准工时','校验结果'];
+    const cols = ['行号','QAD号','客户零件号','产品名称','分类','单位','生产车间','领料车间','标准工时','机台编号','模具/工装编号','校验结果'];
     const tbody = all.length === 0 ? renderEmptyTable(cols.length) : all.map(r => {
         const hasErr = r.errors.length > 0;
         return `<tr style="${hasErr ? 'background:#fef0ef;' : ''}">
@@ -6510,6 +6538,8 @@ function showProdImportPreview(fileName, totalParsed) {
             <td>${r.prodWorkshopLabel || (r.prodWorkshop ? WORKSHOP_KEY2CN[r.prodWorkshop] : '')}</td>
             <td>${r.issueWorkshopLabel || (r.issueWorkshop ? WORKSHOP_KEY2CN[r.issueWorkshop] : '')}</td>
             <td style="text-align:center;">${r.standardHours === '' ? '' : Number(r.standardHours)}</td>
+            <td style="text-align:center;">${r.machineNo || ''}</td>
+            <td style="text-align:center;">${r.moldNo || ''}</td>
             <td style="color:${hasErr ? '#ea4335' : '#34a853'};font-size:12px;">${hasErr ? '❌ '+r.errors.join('；') : '✅ 校验通过'}</td>
         </tr>`;
     }).join('');
@@ -6540,7 +6570,7 @@ function confirmProdImport() {
         (DB.products = DB.products || []).push({
             id, qadNo: qad, customerPartNo: r.customerPartNo || '', productName: nm, category: r.category || '', unit: r.unit || 'PC',
             prodWorkshop: r.prodWorkshop, issueWorkshop: r.issueWorkshop,
-            standardHours: r.standardHours, createdAt: now
+            standardHours: r.standardHours, machineNo: r.machineNo || '', moldNo: r.moldNo || '', createdAt: now
         });
         inserted++;
     });
