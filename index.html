@@ -1353,7 +1353,8 @@ const WORKSHOP_CONFIG = {
             { key: 'actualHours', label: '实际生产小时数', type: 'number', required: false, min: 0 },
             { key: 'planQty', label: '计划数', type: 'number', required: true, min: 0 },
             { key: 'produceQty', label: '生产数', type: 'number', required: true, min: 0 },
-            { key: 'passQty', label: '合格数', type: 'number', required: true, min: 0 }
+            { key: 'passQty', label: '合格数', type: 'number', required: true, min: 0 },
+            { key: 'remark', label: '备注', type: 'textarea', required: false, fullRow: true }
         ],
         defectFields: [
             '焊接', '松动', '间隙', '飞油', '调机', '开裂&断裂', '焊接划碰伤',
@@ -1375,7 +1376,8 @@ const WORKSHOP_CONFIG = {
             { key: 'actualHours', label: '实际生产小时数', type: 'number', required: false, min: 0 },
             { key: 'planQty', label: '计划数', type: 'number', required: true, min: 0 },
             { key: 'produceQty', label: '生产数', type: 'number', required: true, min: 0 },
-            { key: 'passQty', label: '合格数', type: 'number', required: true, min: 0 }
+            { key: 'passQty', label: '合格数', type: 'number', required: true, min: 0 },
+            { key: 'remark', label: '备注', type: 'textarea', required: false, fullRow: true }
         ],
         defectFields: [
             '调试', '注塑机故障', '模具故障', '鼓包', '黑点', '划伤', '断裂', '碰伤', '浮纤', '气痕', '流痕',
@@ -1395,7 +1397,8 @@ const WORKSHOP_CONFIG = {
             { key: 'actualHours', label: '实际生产小时数', type: 'number', required: false, min: 0 },
             { key: 'planQty', label: '计划数', type: 'number', required: true, min: 0 },
             { key: 'produceQty', label: '生产数', type: 'number', required: true, min: 0 },
-            { key: 'passQty', label: '合格数', type: 'number', required: true, min: 0 }
+            { key: 'passQty', label: '合格数', type: 'number', required: true, min: 0 },
+            { key: 'remark', label: '备注', type: 'textarea', required: false, fullRow: true }
         ],
         defectFields: [
             '调试', '缺胶', '溢胶', '尺寸不良', '色差', '划伤', '碰伤', '气泡', '来料不良'
@@ -3564,10 +3567,13 @@ function buildRecordFormHTML(ws, editData) {
             input = `<select id="mf_${f.key}">${(f.options || []).map(o => `<option value="${o}" ${v === o ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
         } else if (f.type === 'number') {
             input = `<input type="number" id="mf_${f.key}" value="${v}" min="${f.min || 0}" step="1">`;
+        } else if (f.type === 'textarea') {
+            const tv = (v === null || v === undefined) ? '' : String(v);
+            input = `<textarea id="mf_${f.key}" rows="2" style="width:100%;min-height:56px;" placeholder="请输入备注 / 原因（选填）">${tv.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>`;
         } else {
             input = `<input type="${f.type}" id="mf_${f.key}" value="${v}">`;
         }
-        return `<div class="form-group"><label>${f.label}${f.required ? '<span class="required">*</span>' : ''}</label>${input}</div>`;
+        return `<div class="form-group"${f.fullRow ? ' style="grid-column:1 / -1;"' : ''}><label>${f.label}${f.required ? '<span class="required">*</span>' : ''}</label>${input}</div>`;
     }).join('') + '</div>';
     const defectHTML = '<div style="margin-top:24px;"><h4 style="margin-bottom:12px;color:var(--primary);">不良品分类数量（选填，默认为0）</h4>' +
         '<div class="form-row-4">' + cfg.defectFields.map(f => {
@@ -3836,7 +3842,7 @@ function renderHistoryTable() {
     const pageList = paginate(list, historyPageNo, historyPageSize);
 
     // 动态附加列（装配含QAD号+客户零件号两列，注塑含机台+QAD号等）
-    const extraCols = cfg.baseFields.filter(f => !['date','shift','planQty','produceQty','passQty','productName'].includes(f.key));
+    const extraCols = cfg.baseFields.filter(f => !['date','shift','planQty','produceQty','passQty','productName','remark'].includes(f.key));
     const extraHead = extraCols.map(f => f.label);
     const colsReal = ['选择', '生产日期', '班别', ...extraHead, '产品名称', '计划', '生产', '合格', '合格率', '达成率', '操作'];
     const tbody = pageList.length === 0 ? renderEmptyTable(colsReal.length) : pageList.map(r => `
@@ -4621,7 +4627,10 @@ function showRecordDetail(ws, id) {
     if (!r) return;
     const cfg = WORKSHOP_CONFIG[ws];
     const c = calcComputedFields(r);
-    const basePairs = cfg.baseFields.map(f => `<div class="detail-item"><span class="detail-label">${f.label}</span><span class="detail-value">${r[f.key] ?? ''}</span></div>`).join('');
+    const escHtml = s => String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const basePairs = cfg.baseFields.filter(f => f.key !== 'remark').map(f => `<div class="detail-item"><span class="detail-label">${f.label}</span><span class="detail-value">${r[f.key] ?? ''}</span></div>`).join('');
+    const remarkVal = (r.remark === null || r.remark === undefined ? '' : String(r.remark)).trim();
+    const remarkPair = `<div class="detail-item" style="grid-column:1 / -1;"><span class="detail-label">备注</span><span class="detail-value" style="white-space:pre-wrap;word-break:break-word;">${remarkVal ? escHtml(remarkVal) : '<span style="color:var(--text-tertiary);">无</span>'}</span></div>`;
     const calcPairs = `
         <div class="detail-item"><span class="detail-label">不良数</span><span class="detail-value">${c.defectQty}</span></div>
         <div class="detail-item"><span class="detail-label">合格率</span><span class="detail-value">${passRateBadge(c.passRate)}</span></div>
@@ -4629,7 +4638,7 @@ function showRecordDetail(ws, id) {
     const defectPairs = cfg.defectFields.map(f => `<div class="detail-item" style="${(+r[f] || 0) > 0 ? 'background:#fef0ef;border-radius:4px;padding:4px 8px;' : ''}">
         <span class="detail-label">${f}</span><span class="detail-value" style="${(+r[f] || 0) > 0 ? 'color:var(--danger);font-weight:700;' : ''}">${+r[f] || 0}</span></div>`).join('');
     document.getElementById('detail-body').innerHTML = `
-        <div class="detail-section"><div class="detail-section-title">📋 基础信息</div><div class="detail-grid">${basePairs}${calcPairs}</div></div>
+        <div class="detail-section"><div class="detail-section-title">📋 基础信息</div><div class="detail-grid">${basePairs}${calcPairs}${remarkPair}</div></div>
         <div class="detail-section"><div class="detail-section-title">⚠️ 不良品分类明细</div><div class="detail-grid-3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">${defectPairs}</div></div>
     `;
     document.getElementById('modal-detail').classList.add('show');
