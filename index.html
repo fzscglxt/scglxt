@@ -97,8 +97,9 @@
         .panel-body { padding: 20px; }
         .table-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { text-align: left; padding: 10px 12px; background: #f8f9fa; border-bottom: 2px solid var(--border-light); color: var(--text-secondary); font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
-        td { padding: 10px 12px; border-bottom: 1px solid var(--border-light); white-space: nowrap; vertical-align: middle; }
+        th { text-align: center; padding: 10px 12px; background: #f8f9fa; border-bottom: 2px solid var(--border-light); color: var(--text-secondary); font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
+        td { text-align: center; padding: 10px 12px; border-bottom: 1px solid var(--border-light); white-space: nowrap; vertical-align: middle; }
+        td.cell-left { text-align: left; }
         tbody tr:hover { background: #f8f9ff; }
         .table-empty { text-align: center; padding: 40px; color: var(--text-tertiary); }
         .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
@@ -287,6 +288,9 @@
     
 /* ===== dark-theme-override: unified dark-navy theme (mirrors kckxt); safe to delete this block to roll back ===== */
 :root { color-scheme: dark; }
+        #mf_productName_dropdown{background:var(--card-bg)!important;border:1px solid var(--primary)!important;box-shadow:0 8px 28px rgba(0,0,0,.6)!important;}
+        #mf_productName_dropdown>div{color:var(--text);border-bottom:1px solid var(--border)!important;}
+        #mf_productName_dropdown>div:hover{background:var(--primary-light)!important;}
 body { color: var(--text); }
 .main, .topbar { background: transparent; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -3850,7 +3854,7 @@ function renderHistoryTable() {
             <td><input type="checkbox" class="history-check" data-id="${r.id}" ${historySelectedIds.has(r.id) ? 'checked' : ''} onchange="historySyncOne(this);historyUpdateToolbar()"></td>
             <td>${r.date}</td><td>${r.shift || ''}</td>
             ${extraCols.map(f => `<td>${r[f.key] !== undefined && r[f.key] !== null ? r[f.key] : ''}</td>`).join('')}
-            <td><b>${r.productName || ''}</b></td>
+            <td class="cell-left"><b>${r.productName || ''}</b></td>
             <td>${r.planQty}</td><td>${r.produceQty}</td><td>${r.passQty}</td>
             <td>${passRateBadge(r.passRate)}</td>
             <td>${planRateBadge(r.planRate)}</td>
@@ -4224,7 +4228,7 @@ function renderAnomalyPage() {
             <td><span class="badge badge-primary">${r.shift || ''}</span></td>
             <td>${r.qadNo || ''}</td>
             <td>${r.customerPartNo || ''}</td>
-            <td><b>${r.productName || ''}</b></td>
+            <td class="cell-left"><b>${r.productName || ''}</b></td>
             <td>${r.produceQty}</td>
             <td>${r.passQty}</td>
             <td style="color:var(--danger);font-weight:600;">${r.defectQty}</td>
@@ -4635,7 +4639,7 @@ function showRecordDetail(ws, id) {
         <div class="detail-item"><span class="detail-label">不良数</span><span class="detail-value">${c.defectQty}</span></div>
         <div class="detail-item"><span class="detail-label">合格率</span><span class="detail-value">${passRateBadge(c.passRate)}</span></div>
         <div class="detail-item"><span class="detail-label">计划达成率</span><span class="detail-value">${planRateBadge(c.planRate)}</span></div>`;
-    const defectPairs = cfg.defectFields.map(f => `<div class="detail-item" style="${(+r[f] || 0) > 0 ? 'background:#fef0ef;border-radius:4px;padding:4px 8px;' : ''}">
+    const defectPairs = cfg.defectFields.map(f => `<div class="detail-item" style="${(+r[f] || 0) > 0 ? 'background:rgba(239,68,68,0.14);border-radius:4px;padding:4px 8px;' : ''}">
         <span class="detail-label">${f}</span><span class="detail-value" style="${(+r[f] || 0) > 0 ? 'color:var(--danger);font-weight:700;' : ''}">${+r[f] || 0}</span></div>`).join('');
     document.getElementById('detail-body').innerHTML = `
         <div class="detail-section"><div class="detail-section-title">📋 基础信息</div><div class="detail-grid">${basePairs}${calcPairs}${remarkPair}</div></div>
@@ -4683,7 +4687,7 @@ function renderAssemblyTable() {
     const fmtH = function(v){ if(v===null||v===undefined||v==='') return ''; const n = Number(v); if(!isNaN(n)) return (Math.floor(n)===n? String(n):n.toFixed(2)); return String(v); };
     const tbody = pageList.length === 0 ? renderEmptyTable(cols.length) : pageList.map(r => `<tr style="cursor:pointer;" ondblclick="showRecordDetail('assembly','${r.id}')">
         <td>${r.date}</td><td><span class="badge badge-primary">${r.shift || ''}</span></td><td>${r.qadNo || ''}</td><td>${r.customerPartNo || ''}</td>
-        <td><b>${r.productName || ''}</b></td>
+        <td class="cell-left"><b>${r.productName || ''}</b></td>
         <td>${r.startTime || ''}</td><td>${r.endTime || ''}</td><td>${fmtH(r.actualHours)}</td>
         <td>${r.planQty}</td><td>${r.produceQty}</td><td>${r.passQty}</td><td>${r.defectQty}</td>
         <td>${passRateBadge(r.passRate)}</td><td>${planRateBadge(r.planRate)}</td>
@@ -4723,7 +4727,7 @@ function renderInjectionTable() {
     const fmtH = function(v){ if(v===null||v===undefined||v==='') return ''; const n = Number(v); if(!isNaN(n)) return (Math.floor(n)===n? String(n):n.toFixed(2)); return String(v); };
     const tbody = pageList.length === 0 ? renderEmptyTable(cols.length) : pageList.map(r => `<tr style="cursor:pointer;" ondblclick="showRecordDetail('injection','${r.id}')">
         <td>${r.date}</td><td><span class="badge badge-primary">${r.shift || ''}</span></td><td>${r.machine || ''}</td>
-        <td>${r.qadNo || ''}</td><td><b>${r.productName || ''}</b></td>
+        <td>${r.qadNo || ''}</td><td class="cell-left"><b>${r.productName || ''}</b></td>
         <td>${r.startTime || ''}</td><td>${r.endTime || ''}</td><td>${fmtH(r.actualHours)}</td>
         <td>${r.planQty}</td><td>${r.produceQty}</td><td>${r.passQty}</td><td>${r.defectQty}</td>
         <td>${passRateBadge(r.passRate)}</td><td>${planRateBadge(r.planRate)}</td>
@@ -4762,7 +4766,7 @@ function renderSiliconeTable() {
     const fmtH = function(v){ if(v===null||v===undefined||v==='') return ''; const n = Number(v); if(!isNaN(n)) return (Math.floor(n)===n? String(n):n.toFixed(2)); return String(v); };
     const tbody = pageList.length === 0 ? renderEmptyTable(cols.length) : pageList.map(r => `<tr style="cursor:pointer;" ondblclick="showRecordDetail('silicone','${r.id}')">
         <td>${r.date}</td><td><span class="badge badge-primary">${r.shift || ''}</span></td>
-        <td>${r.qadNo || ''}</td><td><b>${r.productName || ''}</b></td>
+        <td>${r.qadNo || ''}</td><td class="cell-left"><b>${r.productName || ''}</b></td>
         <td>${r.startTime || ''}</td><td>${r.endTime || ''}</td><td>${fmtH(r.actualHours)}</td>
         <td>${r.planQty}</td><td>${r.produceQty}</td><td>${r.passQty}</td><td>${r.defectQty}</td>
         <td>${passRateBadge(r.passRate)}</td><td>${planRateBadge(r.planRate)}</td>
@@ -4901,7 +4905,7 @@ function renderProductSummaryTable(tableId, start, end, filterPassId, filterPlan
                 <tr>
                     <td>${i + 1}</td>
                     <td>${r.qadNo || '-'}</td>
-                    <td>${r.productName}</td>
+                    <td class="cell-left">${r.productName}</td>
                     <td>${r.plan.toLocaleString()}</td>
                     <td>${r.prod.toLocaleString()}</td>
                     <td>${r.pass.toLocaleString()}</td>
@@ -6250,11 +6254,11 @@ function renderProductTable() {
             <td style="font-size:12px;"><span class="badge badge-secondary" style="white-space:normal;">${p.category || '<span style="color:#9aa0a6;">未分类</span>'}</span></td>
             <td><code title="QAD号:${p.qadNo || ''}">${String(p.qadNo || '')}</code></td>
             <td style="color:var(--text-secondary);">${String(p.customerPartNo || '')}</td>
-            <td style="font-weight:500;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${String(p.productName || '')}">${p.productName || ''}</td>
+            <td style="text-align:left;font-weight:500;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${String(p.productName || '')}">${p.productName || ''}</td>
             <td style="text-align:center;">${p.unit || ''}</td>
             <td><span class="badge ${wsBadge[p.prodWorkshop] || 'badge-normal'}">${workshopLabel(p.prodWorkshop) || '<span style="color:#9aa0a6;">未填</span>'}</span></td>
             <td><span class="badge ${wsBadge[p.issueWorkshop] || 'badge-normal'}">${workshopLabel(p.issueWorkshop) || '<span style="color:#9aa0a6;">未填</span>'}</span></td>
-            <td style="text-align:right;color:#1a73e8;font-weight:600;">${stdH === '' ? '<span style="color:#9aa0a6;">—</span>' : stdH}</td>
+            <td style="text-align:center;color:#1a73e8;font-weight:600;">${stdH === '' ? '<span style="color:#9aa0a6;">—</span>' : stdH}</td>
             <td style="text-align:center;white-space:nowrap;">${p.machineNo ? '<code>'+String(p.machineNo)+'</code>' : '<span style="color:#9aa0a6;">—</span>'}</td>
             <td style="text-align:center;white-space:nowrap;">${p.moldNo ? '<code>'+String(p.moldNo)+'</code>' : '<span style="color:#9aa0a6;">—</span>'}</td>
             <td style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">${formatDateTime(p.createdAt)}</td>
