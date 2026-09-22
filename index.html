@@ -99,7 +99,7 @@
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { text-align: center; padding: 10px 12px; background: #f8f9fa; border-bottom: 2px solid var(--border-light); color: var(--text-secondary); font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
         td { text-align: center; padding: 10px 12px; border-bottom: 1px solid var(--border-light); white-space: nowrap; vertical-align: middle; }
-        td.cell-left { text-align: left; }
+        td.cell-left, th.cell-left { text-align: left; }
         tbody tr:hover { background: #f8f9ff; }
         .table-empty { text-align: center; padding: 40px; color: var(--text-tertiary); }
         .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
@@ -995,7 +995,7 @@ input[type=file]::file-selector-button:hover{background:var(--primary-light);col
                                 <tr style="background:#f5f5f5;">
                                     <th style="padding:8px;border:1px solid #ddd;text-align:center;">日期</th>
                                     <th style="padding:8px;border:1px solid #ddd;text-align:center;">车间</th>
-                                    <th style="padding:8px;border:1px solid #ddd;text-align:center;">产品名称</th>
+                                    <th style="padding:8px;border:1px solid #ddd;text-align:left;">产品名称</th>
                                     <th style="padding:8px;border:1px solid #ddd;text-align:center;">计划时间(分)</th>
                                     <th style="padding:8px;border:1px solid #ddd;text-align:center;">停机时间(分)</th>
                                     <th style="padding:8px;border:1px solid #ddd;text-align:center;">运行时间(分)</th>
@@ -3443,7 +3443,7 @@ function showPreviewTable(cfg) {
                 <div class="panel-header" style="background:#ffebee;"><span class="panel-title" style="color:#c62828;">🚨 异常数据列举（共 ${anomalyList.length} 条${anomalyList.length > 100 ? '，显示前100条' : ''}${tip}）</span></div>
                 <div class="panel-body"><div class="table-wrap" style="${scrollStyle}">
                     <table>
-                        <thead><tr><th>行号</th><th>日期</th><th>产品名称</th><th>生产数</th><th>合格数</th><th>异常原因</th></tr></thead>
+                        <thead><tr><th>行号</th><th>日期</th><th class="cell-left">产品名称</th><th>生产数</th><th>合格数</th><th>异常原因</th></tr></thead>
                         <tbody>${anomalyRows}</tbody>
                     </table>
                 </div></div>
@@ -3464,7 +3464,7 @@ function showPreviewTable(cfg) {
                 <div class="panel-header" style="background:#fff3e0;"><span class="panel-title" style="color:#e65100;">🚩 重复数据列举（共 ${duplicateList.length} 条${duplicateList.length > 100 ? '，显示前100条' : ''}${tipDup} · 与现有记录「同车间+同日期+同产品名」重复，导入时将被自动跳过）</span></div>
                 <div class="panel-body"><div class="table-wrap" style="${scrollStyleDup}">
                     <table>
-                        <thead><tr><th>行号</th><th>日期</th><th>产品名称</th><th>生产数</th><th>合格数</th></tr></thead>
+                        <thead><tr><th>行号</th><th>日期</th><th class="cell-left">产品名称</th><th>生产数</th><th>合格数</th></tr></thead>
                         <tbody>${dupRows}</tbody>
                     </table>
                 </div></div>
@@ -3898,7 +3898,7 @@ function renderHistoryTable() {
             </td>
         </tr>
     `).join('');
-    document.getElementById('history-table').innerHTML = `<thead><tr>${colsReal.map((c, i) => c === '选择' ? `<th style="width:42px;"><input type="checkbox" id="history-check-all" onchange="historyToggleAll(this)"></th>` : `<th>${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
+    document.getElementById('history-table').innerHTML = `<thead><tr>${colsReal.map((c, i) => c === '选择' ? `<th style="width:42px;"><input type="checkbox" id="history-check-all" onchange="historyToggleAll(this)"></th>` : `<th class="${c === '产品名称' ? 'cell-left' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
     // 需求3：history-pagination 分页条 + 每页显示N条下拉
     renderPagination('history-pagination', list.length, historyPageNo, 'historyPageChange', historyPageSize, 'historyPageSizeChange');
     historyUpdateToolbar();
@@ -4285,7 +4285,7 @@ function renderAnomalyPage() {
         pagContainer.style.marginTop = '12px';
         tbWrap.parentNode.insertBefore(pagContainer, tbWrap.nextSibling);
     }
-    document.getElementById('anomaly-table').innerHTML = `<thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
+    document.getElementById('anomaly-table').innerHTML = `<thead><tr>${cols.map(c => `<th class="${c === '产品名称' ? 'cell-left' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
     renderPagination('anomaly-pagination', list.length, anomalyPageNo, 'setAnomalyPage');
 }
 function exportAnomalyXLSX() {
@@ -4550,7 +4550,7 @@ function renderWorkshopDefectStats(ws, fullList, chartId, tableId, chartRef, pro
         const pct = totalDefect > 0 ? (x[1] / totalDefect * 100).toFixed(1) : '0.0';
         const pctNum = parseFloat(pct) || 0;
         const barW = Math.min(pctNum, 100);
-        const bar = `<div style="height:4px;background:#eef0f3;border-radius:2px;overflow:hidden;margin-top:4px;"><div style="width:${barW}%;height:100%;background:#ea4335;"></div></div>`;
+        const bar = `<div style="height:4px;background:rgba(255,255,255,.14);border-radius:2px;overflow:hidden;margin-top:4px;"><div style="width:${barW}%;height:100%;background:#ea4335;"></div></div>`;
         return `<tr>
             <td style="text-align:center;font-weight:600;color:var(--danger);">${rank}</td>
             <td><span class="badge badge-danger" style="margin-right:6px;">TOP${rank}</span>${x[0]}</td>
@@ -4558,7 +4558,7 @@ function renderWorkshopDefectStats(ws, fullList, chartId, tableId, chartRef, pro
             <td style="text-align:center;">${pct}%${bar}</td>
         </tr>`;
     }).join('');
-    const foot = totalDefect > 0 ? `<tfoot><tr style="font-weight:700;background:#fafbfc;">
+    const foot = totalDefect > 0 ? `<tfoot><tr style="font-weight:700;background:var(--cell);color:var(--text);">
         <td colspan="2" style="text-align:center;">合计 / 统计记录 ${statList.length} 条${others > 0 ? `（其他不良合计 ${others} 件）` : ''}</td>
         <td style="text-align:right;color:var(--danger);">${totalDefect.toLocaleString()}</td>
         <td style="text-align:center;">100.0%</td>
@@ -4731,7 +4731,7 @@ function renderAssemblyTable() {
             <button class="btn btn-sm btn-icon danger data-need-edit" onclick="deleteRecord('assembly','${r.id}')" title="删除">🗑️</button>
         </td>
     </tr>`).join('');
-    document.getElementById('assembly-table').innerHTML = `<thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
+    document.getElementById('assembly-table').innerHTML = `<thead><tr>${cols.map(c => `<th class="${c === '产品名称' ? 'cell-left' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
     // 需求4：不良品统计联动产品筛选（同一个 ass-product 下拉）
     const productFilterValue = document.getElementById('ass-product').value || '';
     renderWorkshopDefectStats('assembly', list, 'ass-chart-defect', 'ass-defect-table', assDefectChart, productFilterValue, 'ass-defect-filter-hint');
@@ -4771,7 +4771,7 @@ function renderInjectionTable() {
             <button class="btn btn-sm btn-icon danger data-need-edit" onclick="deleteRecord('injection','${r.id}')" title="删除">🗑️</button>
         </td>
     </tr>`).join('');
-    document.getElementById('injection-table').innerHTML = `<thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
+    document.getElementById('injection-table').innerHTML = `<thead><tr>${cols.map(c => `<th class="${c === '产品名称' ? 'cell-left' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
     const productFilterValue = document.getElementById('inj-product').value || '';
     renderWorkshopDefectStats('injection', list, 'inj-chart-defect', 'inj-defect-table', injDefectChart, productFilterValue, 'inj-defect-filter-hint');
     // 需求6：独立面板 —— 按产品筛选不合格类型统计图
@@ -4810,7 +4810,7 @@ function renderSiliconeTable() {
             <button class="btn btn-sm btn-icon danger data-need-edit" onclick="deleteRecord('silicone','${r.id}')" title="删除">🗑️</button>
         </td>
     </tr>`).join('');
-    document.getElementById('silicone-table').innerHTML = `<thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
+    document.getElementById('silicone-table').innerHTML = `<thead><tr>${cols.map(c => `<th class="${c === '产品名称' ? 'cell-left' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
     const productFilterValue = document.getElementById('sil-product').value || '';
     renderWorkshopDefectStats('silicone', list, 'sil-chart-defect', 'sil-defect-table', silDefectChart, productFilterValue, 'sil-defect-filter-hint');
     // 需求6：独立面板 —— 按产品筛选不合格类型统计图
@@ -4933,7 +4933,7 @@ function renderProductSummaryTable(tableId, start, end, filterPassId, filterPlan
     }
 
     table.innerHTML = `
-        <thead><tr><th>序号</th><th>QAD号</th><th>产品名称</th><th>计划数量</th><th>生产数量</th><th>合格数量</th><th>合格率</th><th>计划达成率</th></tr></thead>
+        <thead><tr><th>序号</th><th>QAD号</th><th class="cell-left">产品名称</th><th>计划数量</th><th>生产数量</th><th>合格数量</th><th>合格率</th><th>计划达成率</th></tr></thead>
         <tbody>
             ${rows.map((r, i) => `
                 <tr>
@@ -5489,7 +5489,7 @@ function renderAnaProductSummary() {
     // 表头（两行）
     const subHeads = ['计划', '生产', '合格', '不良', '达成率', '合格率'];
     const head1 = `<tr>
-        <th rowspan="2" style="min-width:44px;">序号</th><th rowspan="2" style="min-width:80px;">QAD号</th><th rowspan="2" style="min-width:180px;">产品名称</th>
+        <th rowspan="2" style="min-width:44px;">序号</th><th rowspan="2" style="min-width:80px;">QAD号</th><th rowspan="2" style="min-width:180px;text-align:left;">产品名称</th>
         ${buckets.map(b => `<th colspan="${bCols}" style="text-align:center;">${labelOf(b)}</th>`).join('')}
         ${showTotal ? `<th colspan="${bCols}" style="text-align:center;">总计（${range.label}）</th>` : ''}
     </tr><tr>${buckets.map(() => subHeads.map(h => `<th style="text-align:center;min-width:64px;font-weight:600;">${h}</th>`).join('')).join('')}${showTotal ? subHeads.map(h => `<th style="text-align:center;min-width:64px;font-weight:600;">${h}</th>`).join('') : ''}</tr>`;
@@ -6303,7 +6303,7 @@ function renderProductTable() {
         </tr>`;
     }).join('');
     document.getElementById('product-table').innerHTML =
-        `<thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
+        `<thead><tr>${cols.map(c => `<th class="${c === '产品名称' ? 'cell-left' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
     setTimeout(() => {
         const headCb = document.querySelector('#product-table thead input[type=checkbox]');
         if (headCb) headCb.checked = allCheckedOnPage;
@@ -6582,7 +6582,7 @@ function showProdImportPreview(fileName, totalParsed) {
         </tr>`;
     }).join('');
     document.getElementById('prod-import-preview').innerHTML =
-        `<thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
+        `<thead><tr>${cols.map(c => `<th class="${c === '产品名称' ? 'cell-left' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
     document.getElementById('prod-import-panel').style.display = '';
     document.getElementById('prod-confirm-btn').disabled = ok.length === 0;
 }
@@ -7262,7 +7262,7 @@ function renderBomTreeNodeDetail(nodeName) {
             </tr>`;
         }
     }).join('');
-    tbl.innerHTML = `<thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
+    tbl.innerHTML = `<thead><tr>${cols.map(c => `<th class="${c === '产品名称' ? 'cell-left' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
 }
 /** 导出层级 Excel：每一行是"根→子1→子2→…→子N"路径的一个节点，并给出层级/完整路径 */
 function exportBomTreeXLSX() {
@@ -7433,7 +7433,7 @@ function renderBomTable() {
         </tr>`;
     }).join('');
     document.getElementById('bom-table').innerHTML =
-        `<thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
+        `<thead><tr>${cols.map(c => `<th class="${c === '产品名称' ? 'cell-left' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
     setTimeout(() => {
         const headCb = document.querySelector('#bom-table thead input[type=checkbox]');
         if (headCb) headCb.checked = allCheckedOnPage;
@@ -7703,7 +7703,7 @@ function showBomImportPreview(fileName, totalParsed) {
         </tr>`;
     }).join('');
     document.getElementById('bom-import-preview').innerHTML =
-        `<thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
+        `<thead><tr>${cols.map(c => `<th class="${c === '产品名称' ? 'cell-left' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody>`;
     document.getElementById('bom-import-panel').style.display = '';
     document.getElementById('bom-confirm-btn').disabled = ok.length === 0;
 }
