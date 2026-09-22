@@ -1540,6 +1540,39 @@ function pullCloudDB() {
         });
 }
 
+// —— 仅把本次登录时间合并上云（不推送本地业务数据，避免旧数据覆盖云端） ——
+function syncLoginTimeToCloud(username) {
+    if (!isCloudConfigured() || !username) return Promise.resolve(false);
+    const nowISO = new Date().toISOString();
+    const attempt = () => fetch(CLOUD_CONFIG.apiBase + '/api/db', { method: 'GET', cache: 'no-store' })
+        .then(res => res.json())
+        .then(data => {
+            const remote = data && data.db;
+            if (!remote || !Array.isArray(remote.users)) return false;
+            const target = remote.users.find(u => u && u.username === username);
+            if (!target) return false;
+            target.lastLogin = nowISO;
+            return fetch(CLOUD_CONFIG.apiBase + '/api/db', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'If-Version': String(data.version || 0) },
+                body: JSON.stringify({ db: remote, savedBy: username })
+            }).then(putRes => {
+                if (putRes.status === 200) {
+                    return putRes.json().then(j => {
+                        if (j && typeof j.version === 'number') { cloud.version = j.version; cloud.remoteUpdatedAt = j.updatedAt || cloud.remoteUpdatedAt; }
+                        return true;
+                    }).catch(() => true);
+                }
+                if (putRes.status === 409) return 'conflict';
+                return false;
+            });
+        }).catch(() => false);
+    return attempt().then(r => {
+        if (r === 'conflict') return attempt().then(r2 => r2 === true);
+        return r === true;
+    }).catch(() => false);
+}
+
 // —— 推送本地数据到云端（带版本号，防互相覆盖） ——
 function pushCloudDB() {
     if (cloud.saveTimer) { clearTimeout(cloud.saveTimer); cloud.saveTimer = null; }
@@ -2312,6 +2345,7 @@ function handleLogin() {
     if (!user) { err.textContent = '用户名或密码错误'; err.classList.add('show'); return; }
     user.lastLogin = new Date().toISOString();
     saveDB();
+    try { syncLoginTimeToCloud(username); } catch (e) {}
     setCurrentUser({ id: user.id, username: user.username, name: user.name, role: user.role });
     err.classList.remove('show');
     enterApp();
