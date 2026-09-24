@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>车间大屏 · 五系统轮播</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
+    font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;}
+  #screen{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#05070d;
+    opacity:0;transition:opacity .6s ease;}
+  #screen.show{opacity:1;}
+  #brand{position:fixed;left:20px;bottom:14px;z-index:9;color:rgba(255,255,255,.5);
+    font-size:13px;letter-spacing:2px;}
+  #dots{position:fixed;right:20px;bottom:14px;z-index:9;display:flex;gap:9px;}
+  #dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.22);
+    transition:all .3s;}
+  #dots i.on{background:#3fa9ff;transform:scale(1.25);}
+  #loaderr{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+    color:#ff6b6b;font-size:18px;z-index:8;background:#05070d;}
+</style>
+</head>
+<body>
+  <iframe id="screen" title="大屏看板" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
+  <div id="loaderr">看板加载失败，将在切换时自动重试…</div>
+  <div id="brand"></div>
+  <div id="dots"></div>
+<script>
+(function(){
+  var SYSTEMS=[
+    {name:"生产管理系统", url:"https://fz-production-mgmt.pages.dev/?kiosk=screen"},
+    {name:"模具管理系统", url:"https://fz-mold-mgmt.pages.dev/?kiosk=screen"},
+    {name:"设备管理系统", url:"https://fz-eq-mgmt.pages.dev/?kiosk=screen"},
+    {name:"库位看板系统", url:"https://kckxt.pages.dev/?kiosk=screen"},
+    {name:"QRQC快速反应系统", url:"https://fz-qrqc-mgmt.pages.dev/?kiosk=screen"}
+  ];
+  var qs=new URLSearchParams(location.search);
+  var DWELL=parseInt(qs.get("dwell"))||60000;
+  var idx=0, timer=null, failTimer=null;
+  var frame=document.getElementById("screen");
+  var brand=document.getElementById("brand");
+  var dots=document.getElementById("dots");
+  var loaderr=document.getElementById("loaderr");
+  SYSTEMS.forEach(function(){var d=document.createElement("i");dots.appendChild(d);});
+  var dotEls=dots.children;
+
+  function markDots(){
+    for(var k=0;k<dotEls.length;k++){dotEls[k].className=(k===idx?"on":"");}
+  }
+  function show(i){
+    idx=(i+SYSTEMS.length)%SYSTEMS.length;
+    var s=SYSTEMS[idx];
+    frame.classList.remove("show");
+    loaderr.style.display="none";
+    frame.src=s.url+"&cb="+Date.now();
+    brand.textContent=s.name;
+    markDots();
+    if(failTimer){clearTimeout(failTimer);failTimer=null;}
+    failTimer=setTimeout(function(){
+      if(!frame.classList.contains("show")){loaderr.style.display="flex";}
+    },20000);
+  }
+  frame.addEventListener("load",function(){
+    if(frame.src&&frame.src!=="about:blank"){
+      frame.classList.add("show");
+      loaderr.style.display="none";
+      if(failTimer){clearTimeout(failTimer);failTimer=null;}
+    }
+  });
+  show(0);
+  timer=setInterval(function(){show(idx+1);},DWELL);
+})();
+</script>
+</body>
+</html>
