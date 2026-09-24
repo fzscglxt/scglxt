@@ -3,77 +3,173 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>车间大屏 · 五系统轮播</title>
+<title>车间大屏 · 系统轮播</title>
 <style>
-  html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
+  html,body{margin:0;padding:0;height:100%;background:#05070d;overflow:hidden;
     font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;}
-  #screen{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#05070d;z-index:1;}
-  #mask{position:fixed;inset:0;z-index:5;background:#05070d;display:none;
-    align-items:center;justify-content:center;flex-direction:column;}
-  #masktext{color:#8a94a6;font-size:17px;letter-spacing:2px;}
-  #spinner{width:38px;height:38px;border:3px solid rgba(63,169,255,.18);
-    border-top-color:#3fa9ff;border-radius:50%;margin-bottom:18px;
-    animation:spin 0.9s linear infinite;}
+  /* 每个系统一个常驻 iframe，叠满全屏，靠 opacity/visibility 交叉淡入淡出；
+     不使用 display:none，避免图表容器尺寸坍缩后需要重新 resize */
+  .stage{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#05070d;z-index:1;
+    opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .7s ease, visibility 0s linear .7s;}
+  .stage.active{z-index:2;opacity:1;visibility:visible;pointer-events:auto;
+    transition:opacity .7s ease, visibility 0s;}
+  /* 开机品牌加载页（仅开机第一帧加载时出现一次） */
+  #boot{position:fixed;inset:0;z-index:30;background:#05070d;display:flex;
+    align-items:center;justify-content:center;flex-direction:column;
+    transition:opacity .6s ease, visibility 0s linear .6s;}
+  #boot.gone{opacity:0;visibility:hidden;}
+  #spinner{width:40px;height:40px;border:3px solid rgba(63,169,255,.18);
+    border-top-color:#3fa9ff;border-radius:50%;margin-bottom:18px;animation:spin .9s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
-  #brand{position:fixed;left:20px;bottom:14px;z-index:10;color:rgba(255,255,255,.5);
+  #boottext{color:#8a94a6;font-size:16px;letter-spacing:2px;}
+  /* 底部信息条 */
+  #brand{position:fixed;left:20px;bottom:14px;z-index:15;color:rgba(255,255,255,.55);
     font-size:13px;letter-spacing:2px;}
-  #dots{position:fixed;right:20px;bottom:14px;z-index:10;display:flex;gap:9px;}
+  #hint{position:fixed;left:50%;bottom:15px;z-index:15;transform:translateX(-50%);
+    color:#9fb4c8;font-size:13px;letter-spacing:1px;opacity:0;transition:opacity .4s ease;
+    background:rgba(20,28,40,.6);padding:5px 14px;border-radius:14px;white-space:nowrap;}
+  #hint.show{opacity:1;}
+  #hint.warn{color:#ffb3b3;}
+  #dots{position:fixed;right:20px;bottom:14px;z-index:15;display:flex;gap:9px;}
   #dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.22);
     transition:all .3s;}
   #dots i.on{background:#3fa9ff;transform:scale(1.25);}
 </style>
 </head>
 <body>
-  <iframe id="screen" title="大屏看板" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
-  <div id="mask"><div id="spinner"></div><div id="masktext">正在加载看板…</div></div>
+  <div id="boot"><div id="spinner"></div><div id="boottext">正在启动车间大屏…</div></div>
   <div id="brand"></div>
+  <div id="hint"></div>
   <div id="dots"></div>
 <script>
 (function(){
-  var SYSTEMS=[
+  var ALL=[
     {name:"生产管理系统", url:"https://fz-production-mgmt.pages.dev/?kiosk=screen"},
     {name:"模具管理系统", url:"https://fz-mold-mgmt.pages.dev/?kiosk=screen"},
     {name:"设备管理系统", url:"https://fz-eq-mgmt.pages.dev/?kiosk=screen"},
     {name:"库位看板系统", url:"https://kckxt.pages.dev/?kiosk=screen"},
     {name:"QRQC快速反应系统", url:"https://fz-qrqc-mgmt.pages.dev/?kiosk=screen"}
   ];
+  // 四系统（不含库位），顺序：生产 → 设备 → 模具 → QRQC
+  var FOUR=["生产管理系统","设备管理系统","模具管理系统","QRQC快速反应系统"];
+
   var qs=new URLSearchParams(location.search);
+  var SYSTEMS=ALL;
+  if(qs.get("set")==="4"){
+    var map={}; ALL.forEach(function(s){map[s.name]=s;});
+    SYSTEMS=FOUR.map(function(n){return map[n];});
+  }
   var DWELL=parseInt(qs.get("dwell"))||60000;
-  var idx=0, timer=null, failTimer=null;
-  var frame=document.getElementById("screen");
-  var mask=document.getElementById("mask");
-  var masktext=document.getElementById("masktext");
+  // 后台静默刷新间隔（分钟），默认15，传 refresh=0 关闭
+  var REFRESH_MIN=qs.has("refresh")?parseInt(qs.get("refresh")):15;
+  var REFRESH_MS=isNaN(REFRESH_MIN)?15*60000:REFRESH_MIN*60000;
+
   var brand=document.getElementById("brand");
+  var hint=document.getElementById("hint");
+  var boot=document.getElementById("boot");
+  var boottext=document.getElementById("boottext");
   var dots=document.getElementById("dots");
-  SYSTEMS.forEach(function(){var d=document.createElement("i");dots.appendChild(d);});
+
+  // 为每个系统建常驻 iframe（懒加载，初始不设 src）
+  var stages=[];
+  SYSTEMS.forEach(function(s,i){
+    var f=document.createElement("iframe");
+    f.className="stage";
+    f.title=s.name;
+    f.allow="autoplay; fullscreen";
+    f.referrerpolicy="no-referrer";
+    f.addEventListener("load",function(){onLoad(i);});
+    document.body.appendChild(f);
+    var d=document.createElement("i"); dots.appendChild(d);
+    stages.push({frame:f, loaded:false, pending:false, lastLoad:0});
+  });
   var dotEls=dots.children;
 
+  var wantIdx=0;   // 当前希望显示的系统
+  var activeIdx=-1; // 实际正在显示的系统
+  var slowTimer=null, bootDone=false;
+
   function markDots(){
-    for(var k=0;k<dotEls.length;k++){dotEls[k].className=(k===idx?"on":"");}
+    for(var k=0;k<dotEls.length;k++){dotEls[k].className=(k===wantIdx?"on":"");}
   }
-  function show(i){
-    idx=(i+SYSTEMS.length)%SYSTEMS.length;
-    var s=SYSTEMS[idx];
-    masktext.style.color="#8a94a6";
-    masktext.textContent="正在加载 · "+s.name;
-    mask.style.display="flex";
-    frame.src=s.url+"&cb="+Date.now();
-    brand.textContent=s.name;
-    markDots();
-    if(failTimer){clearTimeout(failTimer);failTimer=null;}
-    failTimer=setTimeout(function(){
-      masktext.style.color="#ff6b6b";
-      masktext.textContent=s.name+" 加载较慢，继续等待或下次切换自动重试…";
-    },20000);
+  function setHint(txt,warn){
+    if(txt){hint.textContent=txt;hint.className="show"+(warn?" warn":"");}
+    else {hint.className="";}
   }
-  frame.addEventListener("load",function(){
-    if(frame.src&&frame.src!=="about:blank"){
-      mask.style.display="none";
-      if(failTimer){clearTimeout(failTimer);failTimer=null;}
+  function clearSlow(){if(slowTimer){clearTimeout(slowTimer);slowTimer=null;}}
+  function armSlow(i){
+    clearSlow();
+    slowTimer=setTimeout(function(){
+      if(wantIdx===i&&!stages[i].loaded){
+        if(!bootDone){boottext.textContent=SYSTEMS[i].name+" 加载较慢，正在重试…";}
+        setHint(SYSTEMS[i].name+" 加载较慢，将在就绪后自动切换",true);
+      }
+    },15000);
+  }
+  function beginLoad(i){
+    var st=stages[i];
+    if(st.pending)return;
+    st.pending=true; st.loaded=false;
+    st.frame.src=SYSTEMS[i].url+"&cb="+Date.now();
+    armSlow(i);
+  }
+  function onLoad(i){
+    var st=stages[i];
+    var src=st.frame.src;
+    if(!src||src==="about:blank")return;
+    st.pending=false; st.loaded=true; st.lastLoad=Date.now();
+    clearSlow();
+    if(i===wantIdx)activate(i);
+    // 后台静默刷新加载完且非当前目标：保持隐藏即可（已是最新）
+  }
+  function activate(i){
+    activeIdx=i; wantIdx=i;
+    for(var k=0;k<stages.length;k++){
+      stages[k].frame.classList.toggle("active",k===i);
     }
-  });
-  show(0);
-  timer=setInterval(function(){show(idx+1);},DWELL);
+    brand.textContent=SYSTEMS[i].name;
+    markDots();
+    setHint("");
+    if(!bootDone){bootDone=true;boot.className="gone";}
+  }
+  // 切换到 i：已加载则瞬时交叉切换；未加载则保持当前画面，后台就绪后再淡入（不出现黑屏）
+  function show(i){
+    var n=SYSTEMS.length;
+    i=((i%n)+n)%n;
+    wantIdx=i;
+    brand.textContent=SYSTEMS[i].name;
+    markDots();
+    var st=stages[i];
+    if(st.loaded){activate(i);}
+    else{
+      if(!bootDone){boottext.textContent="正在加载 · "+SYSTEMS[i].name;}
+      setHint("正在准备 · "+SYSTEMS[i].name);
+      if(!st.pending)beginLoad(i);
+    }
+  }
+
+  // 开机：先加载第 0 个，boot 品牌页覆盖直到就绪
+  beginLoad(0);
+  markDots();
+  setInterval(function(){show(wantIdx+1);},DWELL);
+
+  // 后台静默刷新：仅重载隐藏中的帧，活动帧永不打断；每次只刷新一个以分散负载
+  if(REFRESH_MS>0){
+    setInterval(function(){
+      var now=Date.now();
+      for(var k=0;k<stages.length;k++){
+        var st=stages[k];
+        if(k===wantIdx)continue;
+        if(!st.loaded||st.pending)continue;
+        if(now-st.lastLoad>=REFRESH_MS){
+          st.loaded=false; st.pending=true;
+          st.frame.src=SYSTEMS[k].url+"&cb="+now;
+          break;
+        }
+      }
+    },60000);
+  }
 })();
 </script>
 </body>
