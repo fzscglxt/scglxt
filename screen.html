@@ -7,22 +7,25 @@
 <style>
   html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
     font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;}
-  #screen{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#05070d;
-    opacity:0;transition:opacity .6s ease;}
-  #screen.show{opacity:1;}
-  #brand{position:fixed;left:20px;bottom:14px;z-index:9;color:rgba(255,255,255,.5);
+  #screen{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#05070d;z-index:1;}
+  #mask{position:fixed;inset:0;z-index:5;background:#05070d;display:none;
+    align-items:center;justify-content:center;flex-direction:column;}
+  #masktext{color:#8a94a6;font-size:17px;letter-spacing:2px;}
+  #spinner{width:38px;height:38px;border:3px solid rgba(63,169,255,.18);
+    border-top-color:#3fa9ff;border-radius:50%;margin-bottom:18px;
+    animation:spin 0.9s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  #brand{position:fixed;left:20px;bottom:14px;z-index:10;color:rgba(255,255,255,.5);
     font-size:13px;letter-spacing:2px;}
-  #dots{position:fixed;right:20px;bottom:14px;z-index:9;display:flex;gap:9px;}
+  #dots{position:fixed;right:20px;bottom:14px;z-index:10;display:flex;gap:9px;}
   #dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.22);
     transition:all .3s;}
   #dots i.on{background:#3fa9ff;transform:scale(1.25);}
-  #loaderr{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
-    color:#ff6b6b;font-size:18px;z-index:8;background:#05070d;}
 </style>
 </head>
 <body>
   <iframe id="screen" title="大屏看板" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
-  <div id="loaderr">看板加载失败，将在切换时自动重试…</div>
+  <div id="mask"><div id="spinner"></div><div id="masktext">正在加载看板…</div></div>
   <div id="brand"></div>
   <div id="dots"></div>
 <script>
@@ -38,9 +41,10 @@
   var DWELL=parseInt(qs.get("dwell"))||60000;
   var idx=0, timer=null, failTimer=null;
   var frame=document.getElementById("screen");
+  var mask=document.getElementById("mask");
+  var masktext=document.getElementById("masktext");
   var brand=document.getElementById("brand");
   var dots=document.getElementById("dots");
-  var loaderr=document.getElementById("loaderr");
   SYSTEMS.forEach(function(){var d=document.createElement("i");dots.appendChild(d);});
   var dotEls=dots.children;
 
@@ -50,20 +54,21 @@
   function show(i){
     idx=(i+SYSTEMS.length)%SYSTEMS.length;
     var s=SYSTEMS[idx];
-    frame.classList.remove("show");
-    loaderr.style.display="none";
+    masktext.style.color="#8a94a6";
+    masktext.textContent="正在加载 · "+s.name;
+    mask.style.display="flex";
     frame.src=s.url+"&cb="+Date.now();
     brand.textContent=s.name;
     markDots();
     if(failTimer){clearTimeout(failTimer);failTimer=null;}
     failTimer=setTimeout(function(){
-      if(!frame.classList.contains("show")){loaderr.style.display="flex";}
+      masktext.style.color="#ff6b6b";
+      masktext.textContent=s.name+" 加载较慢，继续等待或下次切换自动重试…";
     },20000);
   }
   frame.addEventListener("load",function(){
     if(frame.src&&frame.src!=="about:blank"){
-      frame.classList.add("show");
-      loaderr.style.display="none";
+      mask.style.display="none";
       if(failTimer){clearTimeout(failTimer);failTimer=null;}
     }
   });
