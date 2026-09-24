@@ -254,6 +254,11 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .btn-permission-hide { display: none !important; }
+        /* ===== 大屏看板 Kiosk 只读模式 ===== */
+        body.kiosk-mode #cloud-save-btn,
+        body.kiosk-mode #sidebar-user,
+        body.kiosk-mode .data-need-edit,
+        body.kiosk-mode .admin-only { display: none !important; }
         .backup-hint { background: #fff8e1; border: 1px solid #ffe082; color: #f57f17; padding: 8px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
         .period-tabs { display: inline-flex; background: #f1f5f9; border-radius: 8px; padding: 4px; }
         .period-tab { padding: 6px 16px; font-size: 12px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; }
@@ -2331,6 +2336,15 @@ function getCurrentUser() {
 function setCurrentUser(user) { sessionStorage.setItem(SESSION_KEY, JSON.stringify(user)); }
 function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
 
+// ===== 大屏看板（Kiosk）只读自动登录 =====
+function isKioskMode() {
+    try { return new URLSearchParams(location.search).has('kiosk'); } catch (e) { return false; }
+}
+function kioskAutoLogin() {
+    // 大屏专用只读会话：viewer 角色，不依赖任何真实账号，断电重启自动恢复
+    setCurrentUser({ id: 'kiosk_screen', username: 'kiosk_viewer', name: '大屏看板', role: 'viewer', kiosk: true });
+}
+
 function handleLogin() {
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value;
@@ -2384,6 +2398,14 @@ function enterApp() {
         if (!canEdit) el.classList.add('btn-permission-hide');
         else el.classList.remove('btn-permission-hide');
     });
+    // 大屏 Kiosk 模式：纯只读，隐藏保存按钮与账号区
+    if (isKioskMode() || user.kiosk) {
+        document.body.classList.add('kiosk-mode');
+        const _ksSave = document.getElementById('cloud-save-btn');
+        if (_ksSave) _ksSave.style.display = 'none';
+        const _ksUser = document.getElementById('sidebar-user');
+        if (_ksUser) _ksUser.style.display = 'none';
+    }
     // 路由初始化
     if (!window._navBinded) {
         document.querySelectorAll('.nav-item').forEach(el => {
@@ -7775,6 +7797,8 @@ window.addEventListener('DOMContentLoaded', () => {
     // 云同步初始化（异步）：完成后进入应用 / 登录页
     initCloudSync(() => {
         startCloudPolling();
+        // 大屏只读自动登录：无会话且 URL 带 kiosk 参数时，以 viewer 身份进入
+        if (!getCurrentUser() && isKioskMode()) kioskAutoLogin();
         // 已登录自动进入
         if (getCurrentUser()) enterApp();
     });
