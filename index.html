@@ -7797,8 +7797,8 @@ window.addEventListener('DOMContentLoaded', () => {
     // 云同步初始化（异步）：完成后进入应用 / 登录页
     initCloudSync(() => {
         startCloudPolling();
-        // 大屏只读自动登录：无会话且 URL 带 kiosk 参数时，以 viewer 身份进入
-        if (!getCurrentUser() && isKioskMode()) kioskAutoLogin();
+        // 大屏只读自动登录：URL 带 kiosk 参数即无条件强制 viewer（覆盖任何残留会话，保证大屏永远只读）
+        if (isKioskMode()) kioskAutoLogin();
         // 已登录自动进入
         if (getCurrentUser()) enterApp();
     });
