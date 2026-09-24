@@ -7,14 +7,14 @@
 <style>
   html,body{margin:0;padding:0;height:100%;background:#05070d;overflow:hidden;
     font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;}
-  /* 每个系统一个常驻 iframe，叠满全屏，靠 opacity/visibility 交叉淡入淡出；
-     不使用 display:none，避免图表容器尺寸坍缩后需要重新 resize */
+  /* 每个系统一个常驻 iframe，叠满全屏；用 visibility 做权威显隐（二态、无歧义），
+     不使用 display:none（避免图表容器尺寸坍缩需 resize），也不用 opacity 过渡
+     （多全屏跨域 iframe 叠加时 opacity 合成在弱硬件上可能残留）。visibility 保持布局尺寸，
+     图表实例常驻不销毁，切回瞬时显示、不重新加载、不空白。 */
   .stage{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#05070d;z-index:1;
-    opacity:0;visibility:hidden;pointer-events:none;
-    transition:opacity .7s ease, visibility 0s linear .7s;}
-  .stage.active{z-index:2;opacity:1;visibility:visible;pointer-events:auto;
-    transition:opacity .7s ease, visibility 0s;}
-  /* 开机品牌加载页（仅开机第一帧加载时出现一次） */
+    visibility:hidden;}
+  .stage.active{z-index:2;visibility:visible;}
+  /* 开机品牌加载页（仅开机第一帧加载时出现一次，同源 div，淡入淡出可靠） */
   #boot{position:fixed;inset:0;z-index:30;background:#05070d;display:flex;
     align-items:center;justify-content:center;flex-direction:column;
     transition:opacity .6s ease, visibility 0s linear .6s;}
@@ -133,7 +133,7 @@
     setHint("");
     if(!bootDone){bootDone=true;boot.className="gone";}
   }
-  // 切换到 i：已加载则瞬时交叉切换；未加载则保持当前画面，后台就绪后再淡入（不出现黑屏）
+  // 切换到 i：已加载则瞬时切换；未加载则保持当前画面，后台就绪后再切换（不出现黑屏/加载页）
   function show(i){
     var n=SYSTEMS.length;
     i=((i%n)+n)%n;
