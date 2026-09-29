@@ -263,6 +263,7 @@
         body.kiosk-hidenav .main { margin-left: 0 !important; }
         body.kiosk-hidenav .topbar { display: none !important; }
         body.kiosk-hidenav .filter-bar { display: none !important; }
+        body.kiosk-hidenav .analysis-filter-panel { display: none !important; }
         .backup-hint { background: #fff8e1; border: 1px solid #ffe082; color: #f57f17; padding: 8px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
         .period-tabs { display: inline-flex; background: #f1f5f9; border-radius: 8px; padding: 4px; }
         .period-tab { padding: 6px 16px; font-size: 12px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; }
@@ -859,7 +860,7 @@ input[type=file]::file-selector-button:hover{background:var(--primary-light);col
                 <div class="topbar-actions"><button class="btn btn-outline" onclick="exportAnalysisCSV()">📥 导出Excel</button></div>
             </div>
             <!-- 需求5+最新需求1：自定义日期移到"本年"Tab右侧，整体规格进一步减小到合适大小（height24/padding0 4px） -->
-            <div class="panel"><div class="panel-body">
+            <div class="panel analysis-filter-panel"><div class="panel-body">
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow-x:auto;">
                     <div class="period-tabs" id="analysis-period" style="flex-shrink:0;">
                         <div class="period-tab active" data-period="7d" onclick="switchAnalysisPeriod('7d')">近7天</div>
