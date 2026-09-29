@@ -3848,8 +3848,8 @@ function submitManualRecord(ws) {
     const cfg = WORKSHOP_CONFIG[ws];
     const obj = { id: 'rec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) };
     let error = null;
-    cfg.(baseFields.forEach(f => {
-        let v = document.getElementById('mf_' + f.key)||{}).(value!=null?value:'');
+    cfg.baseFields.forEach(f => {
+        let v = (document.getElementById('mf_' + f.key)||{}).value; if (v==null) v='';
         if (['planQty', 'produceQty', 'passQty', 'actualHours'].includes(f.key)) {
             v = Number(v) || 0;
             if (v < 0) error = f.label + '不能为负数';
