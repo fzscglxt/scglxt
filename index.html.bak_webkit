@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -2321,9 +2321,9 @@ function addLog(type, desc, workshop = null) {
     DB.logs.unshift({
         id: 'log_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
         time: new Date().toISOString(),
-        userId: ((getCurrentUser())||{}).id,
-        username: ((getCurrentUser())||{}).username,
-        name: ((getCurrentUser())||{}).name,
+        userId: getCurrentUser()?.id,
+        username: getCurrentUser()?.username,
+        name: getCurrentUser()?.name,
         type, desc, workshop
     });
     if (DB.logs.length > 2000) DB.logs = DB.logs.slice(0, 2000);
@@ -3072,11 +3072,11 @@ function _scoreCandidate(cellText, fieldLabel, aliasListForField) {
     let score = 0;
     // 数量关键词：只对【数字类字段(planQty/produceQty/passQty)】有效，其他字段加分0
     const numericFieldKeys = ['planQty','produceQty','passQty'];
-    const isNumField = numericFieldKeys.includes((fieldLabel||{}).key || '');
+    const isNumField = numericFieldKeys.includes(fieldLabel?.key || '');
     if (isNumField) {
         if (/[数量产出发放完成]/.test(n)) score += 5;  // 含"数/量/产/出/完/发/放"→ 更可能是数量列
     }
-    const normFieldLabel = _normHeader((fieldLabel||{}).label || '');
+    const normFieldLabel = _normHeader(fieldLabel?.label || '');
     if (n === normFieldLabel) score += 10;  // 完全等于 label
     for (const a of (aliasListForField || [])) {
         if (n === _normHeader(a)) { score += 8; break; }
@@ -3279,8 +3279,7 @@ function parseRowsToRecords() {
     // → 额外扫描：找到 dataStartRow 之后第一条 **日期列有效** 的行作为真正起始
     // ============================================================
     let dataStartRow = headerIsTwoRow ? headerRowIdx + 2 : headerRowIdx + 1;
-    var _dateFound = [...bestByBaseKey.entries()].find(([k]) => k === 'date');
-    const dateColIdx = _dateFound && _dateFound[1] ? _dateFound[1].colIdx : undefined;
+    const dateColIdx = [...bestByBaseKey.entries()].find(([k]) => k === 'date')?.[1]?.colIdx;
     if (dateColIdx !== undefined) {
         for (let tryRow = dataStartRow; tryRow < Math.min(rawParsedRows.length, dataStartRow + 6); tryRow++) {
             const row = rawParsedRows[tryRow];
@@ -3396,7 +3395,7 @@ function showPreviewTable(cfg) {
     const anomalyRowNums = new Set(anomalyList.map(a => a._rowNum));
     const dupRowNums = new Set(duplicateList.map(a => a._rowNum));
     const previewRows = previewSlice.map(r => {
-        const base = cfg.baseFields.map(f => (r[f.key]!=null?r[f.key]:''));
+        const base = cfg.baseFields.map(f => r[f.key] ?? '');
         const defects = cfg.defectFields.map(f => r[f] || 0);
         const dSum = defects.reduce((s, v) => s + (Number(v) || 0), 0);
         const pq = Number(r.produceQty) || 0;
@@ -3422,7 +3421,7 @@ function showPreviewTable(cfg) {
     );
     const allowedHead = allowedToImport.length > 0 ? ['行号', ...cfg.baseFields.map(f => f.label), 'Σ不良', '合格率'] : [];
     const allowedRows = allowedToImport.map((r) => {
-        const base = cfg.baseFields.map(f => (r[f.key]!=null?r[f.key]:''));
+        const base = cfg.baseFields.map(f => r[f.key] ?? '');
         let dSum = 0; cfg.defectFields.forEach(k => dSum += Number(r[k]) || 0);
         const pq = Number(r.produceQty) || 0, pqP = Number(r.passQty) || 0;
         const rate = pq > 0 ? ((pqP / pq) * 100).toFixed(1) + '%' : '-';
@@ -3466,8 +3465,8 @@ function showPreviewTable(cfg) {
                 <td>${a._rowNum}</td>
                 <td>${a.date || ''}</td>
                 <td>${a.productName || ''}</td>
-                <td>${(a.produceQty!=null?a.produceQty:'')}</td>
-                <td>${(a.passQty!=null?a.passQty:'')}</td>
+                <td>${a.produceQty ?? ''}</td>
+                <td>${a.passQty ?? ''}</td>
                 <td style="color:#e53935;">${a._reasons.join('；')}</td>
             </tr>`).join('');
             allPanels += `<div class="panel" style="margin-top:14px;border:1px solid #ffcdd2;">
@@ -3488,8 +3487,8 @@ function showPreviewTable(cfg) {
                 <td>${a._rowNum}</td>
                 <td>${a.date || ''}</td>
                 <td>${a.productName || ''}</td>
-                <td>${(a.produceQty!=null?a.produceQty:'')}</td>
-                <td>${(a.passQty!=null?a.passQty:'')}</td>
+                <td>${a.produceQty ?? ''}</td>
+                <td>${a.passQty ?? ''}</td>
             </tr>`).join('');
             allPanels += `<div class="panel" style="margin-top:14px;border:1px solid #ffe0b2;">
                 <div class="panel-header" style="background:#fff3e0;"><span class="panel-title" style="color:#e65100;">🚩 重复数据列举（共 ${duplicateList.length} 条${duplicateList.length > 100 ? '，显示前100条' : ''}${tipDup} · 与现有记录「同车间+同日期+同产品名」重复，导入时将被自动跳过）</span></div>
@@ -3574,7 +3573,7 @@ function confirmImport() {
     }
     valid.forEach(r => {
         const obj = { id: 'rec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) };
-        WORKSHOP_CONFIG[ws].baseFields.forEach(f => obj[f.key] = (r[f.key]!=null?r[f.key]:''));
+        WORKSHOP_CONFIG[ws].baseFields.forEach(f => obj[f.key] = r[f.key] ?? '');
         WORKSHOP_CONFIG[ws].defectFields.forEach(f => obj[f] = Number(r[f]) || 0);
         obj.createdAt = new Date().toISOString();
         DB[ws].push(obj);
@@ -3848,8 +3847,8 @@ function submitManualRecord(ws) {
     const cfg = WORKSHOP_CONFIG[ws];
     const obj = { id: 'rec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) };
     let error = null;
-    cfg.(baseFields.forEach(f => {
-        let v = document.getElementById('mf_' + f.key)||{}).(value!=null?value:'');
+    cfg.baseFields.forEach(f => {
+        let v = document.getElementById('mf_' + f.key)?.value ?? '';
         if (['planQty', 'produceQty', 'passQty', 'actualHours'].includes(f.key)) {
             v = Number(v) || 0;
             if (v < 0) error = f.label + '不能为负数';
@@ -4130,7 +4129,7 @@ function exportWorkshopXLSX(ws) {
     const rows = list.map(r => {
         const c = calcComputedFields(r);
         const row = {};
-        cfg.baseFields.forEach(f => row[f.label] = (r[f.key]!=null?r[f.key]:''));
+        cfg.baseFields.forEach(f => row[f.label] = r[f.key] ?? '');
         row['不良总数'] = c.defectQty;
         row['合格率(%)'] = c.passRate;
         row['计划达成率(%)'] = c.planRate;
@@ -4697,7 +4696,7 @@ function showRecordDetail(ws, id) {
     const cfg = WORKSHOP_CONFIG[ws];
     const c = calcComputedFields(r);
     const escHtml = s => String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const basePairs = cfg.baseFields.filter(f => f.key !== 'remark').map(f => `<div class="detail-item"><span class="detail-label">${f.label}</span><span class="detail-value">${(r[f.key]!=null?r[f.key]:'')}</span></div>`).join('');
+    const basePairs = cfg.baseFields.filter(f => f.key !== 'remark').map(f => `<div class="detail-item"><span class="detail-label">${f.label}</span><span class="detail-value">${r[f.key] ?? ''}</span></div>`).join('');
     const remarkVal = (r.remark === null || r.remark === undefined ? '' : String(r.remark)).trim();
     const remarkPair = `<div class="detail-item" style="grid-column:1 / -1;"><span class="detail-label">备注</span><span class="detail-value" style="white-space:pre-wrap;word-break:break-word;">${remarkVal ? escHtml(remarkVal) : '<span style="color:var(--text-tertiary);">无</span>'}</span></div>`;
     const calcPairs = `
@@ -4727,9 +4726,9 @@ function renderAssemblyFilters() {
 function getFilteredList(ws, dateStartId, dateEndId, shiftId, searchId, extraFilter, productFilterId) {
     const ds = document.getElementById(dateStartId).value;
     const de = document.getElementById(dateEndId).value;
-    const sh = (document.getElementById(shiftId)||{}).value || '';
-    const kw = ((document.getElementById(searchId)||{}).value || '').trim();
-    const product = productFilterId ? ((document.getElementById(productFilterId)||{}).value || '') : '';
+    const sh = document.getElementById(shiftId)?.value || '';
+    const kw = (document.getElementById(searchId)?.value || '').trim();
+    const product = productFilterId ? (document.getElementById(productFilterId)?.value || '') : '';
     let list = DB[ws].slice().map(r => ({ ...r, ...calcComputedFields(r) }));
     if (ds) list = list.filter(r => r.date >= ds);
     if (de) list = list.filter(r => r.date <= de);
@@ -5697,7 +5696,7 @@ function exportAnalysisCSV() {
         csv += headers.join(',') + '\n';
         DB[ws].filter(r => r.date >= range.start && r.date <= range.end).forEach(r => {
             const c = calcComputedFields(r);
-            const row = cfg.baseFields.map(f => `"${(r[f.key]!=null?r[f.key]:'')}"`).concat([c.defectQty, c.passRate, c.planRate]).concat(cfg.defectFields.map(f => r[f] || 0));
+            const row = cfg.baseFields.map(f => `"${r[f.key] ?? ''}"`).concat([c.defectQty, c.passRate, c.planRate]).concat(cfg.defectFields.map(f => r[f] || 0));
             csv += row.join(',') + '\n';
         });
     });
@@ -5854,7 +5853,7 @@ function renderSystemBackupSummary() {
                 const at = obj.snapshotAt ? new Date(obj.snapshotAt) : null;
                 btn.disabled = false;
                 hint.textContent = at
-                    ? `🕒 存在上一次临时快照（${formatDateTime(at)} 生成）：装配 ${((obj.db||{}).assembly||[]).length} / 注塑 ${((obj.db||{}).injection||[]).length} / 硅胶 ${((obj.db||{}).silicone||[]).length} / 产品 ${((obj.db||{}).products||[]).length}，可点击左侧按钮一键回滚。`
+                    ? `🕒 存在上一次临时快照（${formatDateTime(at)} 生成）：装配 ${(obj.db?.assembly||[]).length} / 注塑 ${(obj.db?.injection||[]).length} / 硅胶 ${(obj.db?.silicone||[]).length} / 产品 ${(obj.db?.products||[]).length}，可点击左侧按钮一键回滚。`
                     : '🕒 存在上一次临时快照，可点击左侧按钮一键回滚。';
             } else {
                 btn.disabled = true;
@@ -5927,13 +5926,13 @@ function doBackup() {
         + '_' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
     const snapshot = JSON.parse(JSON.stringify(DB));
     const content = JSON.stringify({ version: 1, backupAt: now.toISOString(), summary: {
-        assembly: (snapshot.assembly||{}).length || 0,
-        injection: (snapshot.injection||{}).length || 0,
-        silicone: (snapshot.silicone||{}).length || 0,
+        assembly: snapshot.assembly?.length || 0,
+        injection: snapshot.injection?.length || 0,
+        silicone: snapshot.silicone?.length || 0,
         products: (snapshot.products||[]).length,
         boms: (snapshot.boms||[]).length,
         logs: (snapshot.logs||[]).length,
-        users: (snapshot.users||{}).length || 0
+        users: snapshot.users?.length || 0
     }, db: snapshot }, null, 2);
     const blob = new Blob([content], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -6126,7 +6125,7 @@ function renderLogTable() {
             <td style="width:160px;">${formatDateTime(l.time)}</td>
             <td style="width:100px;">${l.name || l.username || '系统'}</td>
             <td style="width:90px;"><span class="badge ${typeBadge[l.type] || 'badge-secondary'}">${l.type || ''}</span></td>
-            <td style="width:120px;">${l.workshop ? `<span class="badge badge-normal">${(WORKSHOP_CONFIG[l.workshop]||{}).name || l.workshop}</span>` : '—'}</td>
+            <td style="width:120px;">${l.workshop ? `<span class="badge badge-normal">${WORKSHOP_CONFIG[l.workshop]?.name || l.workshop}</span>` : '—'}</td>
             <td style="max-width:500px;white-space:normal;">${l.desc || ''}</td>
         </tr>`).join('');
     document.getElementById('log-table').innerHTML = `<thead><tr>
@@ -6419,7 +6418,7 @@ function openProductModal(id) {
 function saveProduct() {
     const qad = (document.getElementById('pm-qad').value || '').toString().trim();
     const name = (document.getElementById('pm-name').value || '').trim();
-    const customerPartNo = ((document.getElementById('pm-customerPartNo')||{}).value || '').trim();
+    const customerPartNo = (document.getElementById('pm-customerPartNo')?.value || '').trim();
     const category = (document.getElementById('pm-category').value || '').trim();
     const unit = (document.getElementById('pm-unit').value || 'PC').trim() || 'PC';
     const hoursInput = document.getElementById('pm-hours').value;
@@ -6431,8 +6430,8 @@ function saveProduct() {
     }
     const prodWs = document.getElementById('pm-prodWs').value;
     const issueWs = document.getElementById('pm-issueWs').value;
-    const machineNo = ((document.getElementById('pm-machineNo')||{}).value || '').trim();
-    const moldNo = ((document.getElementById('pm-moldNo')||{}).value || '').trim();
+    const machineNo = (document.getElementById('pm-machineNo')?.value || '').trim();
+    const moldNo = (document.getElementById('pm-moldNo')?.value || '').trim();
     if (!qad) return showToast('请填写 QAD号', 'warning');
     if (!name) return showToast('请填写 产品名称', 'warning');
     const list = DB.products || [];
@@ -6504,7 +6503,7 @@ function exportProductsXLSX() {
 // 需求2：产品物料 Excel 上传解析 + 预览 + 校验 + 确认导入（第三版新7字段）
 let prodImportPreviewRows = [];
 function handleProdImport(ev) {
-    const f = (ev.target.files||[])[0];
+    const f = ev.target.files?.[0];
     if (!f) return;
     if (!/\.xlsx$/i.test(f.name)) { showToast('仅支持 .xlsx 格式文件', 'warning'); ev.target.value = ''; return; }
     const reader = new FileReader();
@@ -7624,7 +7623,7 @@ function exportBomXLSX() {
 // ---- BOM：Excel 导入（严格校验父子件都在产品物料清单中） ----
 let bomImportPreviewRows = [];
 function handleBomImport(ev) {
-    const f = (ev.target.files||[])[0];
+    const f = ev.target.files?.[0];
     if (!f) return;
     if (!/\.xlsx$/i.test(f.name)) { showToast('仅支持 .xlsx 格式文件', 'warning'); ev.target.value = ''; return; }
     const reader = new FileReader();
@@ -7820,7 +7819,7 @@ async function loadCrossSystemData() {
         const eqRes = await fetch('https://fz-eq-mgmt.pages.dev/api/db', { cache: 'no-store' });
         if (eqRes.ok) {
             const eqData = await eqRes.json();
-            EQUIPMENT_LIST = (eqData.db||{}).equipments || eqData.equipments || [];
+            EQUIPMENT_LIST = eqData.db?.equipments || eqData.equipments || [];
         }
     } catch(e) { console.warn('设备系统数据加载失败', e); }
     try {
@@ -7828,8 +7827,8 @@ async function loadCrossSystemData() {
         const moldRes = await fetch('https://fz-mold-mgmt.pages.dev/api/db', { cache: 'no-store' });
         if (moldRes.ok) {
             const moldData = await moldRes.json();
-            MOLD_LIST = (moldData.db||{}).molds || moldData.molds || [];
-            TOOLING_LIST = (moldData.db||{}).fixtures || moldData.fixtures || [];
+            MOLD_LIST = moldData.db?.molds || moldData.molds || [];
+            TOOLING_LIST = moldData.db?.fixtures || moldData.fixtures || [];
         }
     } catch(e) { console.warn('模具系统数据加载失败', e); }
 }
@@ -7939,7 +7938,7 @@ function _ganttCollectAllRecords() {
                 __noTime: noTimeFallback,
                 id: r.id,
                 workshop: ws,
-                workshopName: (cfg||{}).name || GANTT_WS_NAME[ws] || ws,
+                workshopName: cfg?.name || GANTT_WS_NAME[ws] || ws,
                 date: r.date,
                 shift: r.shift,
                 qadNo: r.qadNo,
@@ -8012,7 +8011,7 @@ function onGanttWorkshopChange() {
 function renderGanttPage() {
     // 1) 填产品下拉：按当前已选车间筛选产品（用户什么都没选就默认 all）
     const wsEl = document.getElementById('gantt-workshop');
-    const curWs = (wsEl||{}).value || 'all';
+    const curWs = wsEl?.value || 'all';
     rebuildGanttProductSelect(curWs);
     const allRecs = _ganttCollectAllRecords();
     // 2) 如果日期筛选为空，自动用全局最小/最大日期
@@ -8104,7 +8103,7 @@ function ganttRefresh(cachedRecs) {
 
     document.getElementById('gantt-summary').textContent = `共 ${groupsArr.length} 个产品（${rows.length} 条生产记录）（${ws === 'all' ? '三车间合计' : GANTT_WS_NAME[ws]}）`;
     // 轴：以筛选日期范围为准
-    const d0 = axisStart || ((firstRec||{}).__start || parseISO((firstRec||{}).__date) || new Date());
+    const d0 = axisStart || (firstRec?.__start || parseISO(firstRec?.__date) || new Date());
     const dN = axisEnd || (rows.length ? (lastRec.__end || (function () { const d = parseISO(lastRec.__date); d.setHours(23, 59, 59, 999); return d; })()) : new Date());
     d0.setHours(0, 0, 0, 0);
     if (!(dN.getHours() === 23 && dN.getMinutes() === 59)) dN.setHours(23, 59, 59, 999);
