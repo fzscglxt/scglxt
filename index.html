@@ -259,6 +259,8 @@
         body.kiosk-mode #sidebar-user,
         body.kiosk-mode .data-need-edit,
         body.kiosk-mode .admin-only { display: none !important; }
+        body.kiosk-hidenav #sidebar { display: none !important; }
+        body.kiosk-hidenav .main { margin-left: 0 !important; }
         .backup-hint { background: #fff8e1; border: 1px solid #ffe082; color: #f57f17; padding: 8px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
         .period-tabs { display: inline-flex; background: #f1f5f9; border-radius: 8px; padding: 4px; }
         .period-tab { padding: 6px 16px; font-size: 12px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; }
@@ -2340,6 +2342,8 @@ function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
 function isKioskMode() {
     try { return new URLSearchParams(location.search).has('kiosk'); } catch (e) { return false; }
 }
+function kioskUrlPage(){ try{ var p=new URLSearchParams(location.search); if(!p.has('kiosk')) return null; return p.get('page')||null; }catch(e){ return null; } }
+function kioskUrlHidenav(){ try{ return new URLSearchParams(location.search).get('hidenav')==='1'; }catch(e){ return false; } }
 function kioskAutoLogin() {
     // 大屏专用只读会话：viewer 角色，不依赖任何真实账号，断电重启自动恢复
     setCurrentUser({ id: 'kiosk_screen', username: 'kiosk_viewer', name: '大屏看板', role: 'viewer', kiosk: true });
@@ -2401,6 +2405,7 @@ function enterApp() {
     // 大屏 Kiosk 模式：纯只读，隐藏保存按钮与账号区
     if (isKioskMode() || user.kiosk) {
         document.body.classList.add('kiosk-mode');
+        if (kioskUrlHidenav()) document.body.classList.add('kiosk-hidenav');
         const _ksSave = document.getElementById('cloud-save-btn');
         if (_ksSave) _ksSave.style.display = 'none';
         const _ksUser = document.getElementById('sidebar-user');
@@ -2413,7 +2418,7 @@ function enterApp() {
         });
         window._navBinded = true;
     }
-    navigateTo('dashboard');
+    navigateTo(kioskUrlPage() || 'dashboard');
     updateBackupHint();
 }
 

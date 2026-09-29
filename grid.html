@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大屏四宫格轮播</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; background:#000; overflow:hidden; }
+  #stage { position:fixed; inset:0; background:#000; }
+  /* 每个系统是一个铺满四宫格的 set，同一时刻仅一个可见；用纯 visibility 硬切，避免弱硬件帧残留 */
+  .set {
+    position:absolute; inset:0;
+    display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr;
+    visibility:hidden;
+  }
+  .set.active { visibility:visible; }
+  .cell { background:#0b1220; border:1px solid #000; overflow:hidden; }
+  iframe { width:100%; height:100%; border:0; display:block; background:#0b1220; }
+  /* 极简角标：当前系统名 + 时钟，不遮挡系统内容、不响应点击 */
+  #hud {
+    position:fixed; top:8px; right:12px; z-index:60;
+    color:#93c5fd; font:13px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif;
+    background:rgba(2,6,23,.45); padding:3px 12px; border-radius:8px;
+    pointer-events:none; letter-spacing:.5px;
+  }
+  /* 启动遮罩：弱硬件首载时给一个深色等待页，避免白屏 */
+  #boot {
+    position:fixed; inset:0; z-index:80; background:#0b1220; color:#7dd3fc;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+    font:16px "Microsoft YaHei", sans-serif; transition:opacity .4s;
+  }
+  #boot .spin {
+    width:42px; height:42px; border:4px solid rgba(125,211,252,.25); border-top-color:#38bdf8;
+    border-radius:50%; animation:sp 1s linear infinite;
+  }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  #boot.hide { opacity:0; pointer-events:none; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="hud"></div>
+<div id="boot"><div class="spin"></div><div id="boot-text">大屏四宫格正在加载…</div></div>
+
+<script>
+/* ============================================================
+   五系统四宫格配置：每个系统 4 个格子（按 左上/右上/左下/右下 顺序）
+   - 库位：四格固定四个仓库（wh），不自动轮播
+   - 其余四系统：四格定位到指定模块（page），并隐藏左侧导航（hidenav）
+   ============================================================ */
+var SYSTEMS = [
+  { name:'库位看板', base:'https://kckxt.pages.dev/', hide:0, cells:[
+      { wh:'semi' }, { wh:'assembly' }, { wh:'selfmade' }, { wh:'raw' } ] },
+  { name:'生产管理', base:'https://fz-production-mgmt.pages.dev/', hide:1, cells:[
+      { p:'dashboard' }, { p:'anomaly' }, { p:'analysis' }, { p:'oee' } ] },
+  { name:'模具管理', base:'https://fz-mold-mgmt.pages.dev/', hide:1, cells:[
+      { p:'dashboard' }, { p:'maintenance-plan' }, { p:'usage-records' }, { p:'alerts' } ] },
+  { name:'设备管理', base:'https://fz-eq-mgmt.pages.dev/', hide:1, cells:[
+      { p:'dashboard' }, { p:'maintenance-plan' }, { p:'alerts' }, { p:'reports' } ] },
+  { name:'QRQC', base:'https://fz-qrqc-mgmt.pages.dev/', hide:1, cells:[
+      { p:'dashboard' }, { p:'issues' }, { p:'alerts' }, { p:'reports' } ] }
+];
+
+var QUERY = new URLSearchParams(location.search);
+var DWELL = parseInt(QUERY.get('dwell')) || 30000;   // 每个系统停留，默认30秒
+var PRELOAD_DELAY = 6000;                            // 启动后错开6秒再预加载下一组，缓解弱硬件
+
+/* ---------- 构建 DOM ---------- */
+var stage = document.getElementById('stage');
+var sets = [], ifr = [];
+SYSTEMS.forEach(function(s, si){
+  var set = document.createElement('div');
+  set.className = 'set';
+  var fs = [];
+  s.cells.forEach(function(c){
+    var cell = document.createElement('div');
+    cell.className = 'cell';
+    var f = document.createElement('iframe');
+    f.setAttribute('loading','eager');
+    f.src = 'about:blank';
+    cell.appendChild(f); set.appendChild(cell); fs.push(f);
+  });
+  stage.appendChild(set); sets.push(set); ifr.push(fs);
+});
+
+/* ---------- URL 构造 ---------- */
+function buildUrl(s, c){
+  var q = '?kiosk=screen';
+  if (c.wh) q += '&wh=' + c.wh;
+  if (c.p)  q += '&page=' + c.p;
+  if (s.hide) q += '&hidenav=1';
+  q += '&cb=' + Date.now();   // 每次预加载带新时间戳：破缓存 + 启动即拉云端最新
+  return s.base + q;
+}
+function isBlank(f){ return !f.src || /about:blank/.test(f.src); }
+/* 仅加载仍是空白页的组；force 用于强制刷新 */
+function loadGroup(i, force){
+  var s = SYSTEMS[i];
+  ifr[i].forEach(function(f, k){
+    if (force || isBlank(f)) f.src = buildUrl(s, s.cells[k]);
+  });
+}
+function unloadGroup(i){ ifr[i].forEach(function(f){ f.src = 'about:blank'; }); }
+function show(i){
+  sets.forEach(function(s, k){ s.classList.toggle('active', k === i); });
+}
+
+/* ---------- 轮播 ---------- */
+var cur = 0, timer = null;
+function tick(){
+  cur = (cur + 1) % SYSTEMS.length;
+  show(cur);
+  var next = (cur + 1) % SYSTEMS.length;
+  var prev = (cur - 1 + SYSTEMS.length) % SYSTEMS.length;
+  loadGroup(next);     // 后台预加载下一组（约30秒后显示，提前就绪、且为最新数据）
+  unloadGroup(prev);   // 释放刚切走的一组，控制同时仅8个iframe持有内容，省内存
+}
+function start(){
+  if (timer) clearInterval(timer);
+  timer = setInterval(tick, DWELL);
+}
+
+/* ---------- 角标：系统名 + 时钟 ---------- */
+var hud = document.getElementById('hud');
+function pad(n){ return String(n).padStart(2,'0'); }
+function renderHud(){
+  var d = new Date();
+  var hm = pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+  hud.textContent = SYSTEMS[cur].name + ' · ' + hm;
+}
+setInterval(renderHud, 1000);
+
+/* ---------- 屏幕常亮（Wake Lock，尽力而为；失败由 EShow/kiosk 应用兜底） ---------- */
+var _wl = null;
+function reqWake(){
+  try{
+    if ('wakeLock' in navigator) navigator.wakeLock.request('screen').then(function(wl){ _wl = wl; }).catch(function(){});
+  }catch(e){}
+}
+document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible') reqWake(); });
+
+/* ---------- 启动：先载组0，错开再预载组1 ---------- */
+loadGroup(0, true);
+show(0);
+renderHud();
+reqWake();
+setTimeout(function(){ loadGroup(1); }, PRELOAD_DELAY);
+start();
+/* 首组4格基本就绪后淡出启动遮罩 */
+setTimeout(function(){
+  var b = document.getElementById('boot');
+  b.classList.add('hide');
+  setTimeout(function(){ b.style.display='none'; }, 500);
+}, 4500);
+</script>
+</body>
+</html>
