@@ -883,6 +883,24 @@ input[type=file]::file-selector-button:hover{background:var(--primary-light);col
                 </select>
             </div><div class="panel-body"><div class="chart-container" style="height:520px;"><canvas id="ana-chart-defect-top"></canvas></div></div></div>
 
+            <!-- 异常统计表：计划达成率低于阈值的记录 -->
+            <div class="panel" style="margin-top:16px;">
+                <div class="panel-header"><span class="panel-title">⚠️ 异常统计表（计划达成率低于阈值）</span>
+                    <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;">
+                        <select id="ana-abn-workshop" onchange="renderAnaAbnormalTable()" style="width:auto;min-width:120px;">
+                            <option value="all">全车间</option><option value="assembly">装配车间</option><option value="injection">注塑车间</option><option value="silicone">硅胶车间</option>
+                        </select>
+                        <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">达成率阈值</span>
+                        <input type="number" id="ana-abn-threshold" value="100" min="0" max="100" step="1" onchange="renderAnaAbnormalTable()" style="width:60px;height:26px;font-size:12px;padding:0 4px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text);">
+                        <span style="font-size:12px;color:var(--text-secondary);">%</span>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div id="ana-abn-hint" style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;"></div>
+                    <div class="table-wrap"><table id="ana-abn-table" style="width:100%;border-collapse:collapse;font-size:12px;"></table></div>
+                </div>
+            </div>
+
         </div>
 
 
@@ -1364,7 +1382,8 @@ const WORKSHOP_CONFIG = {
             // --- 新增：3 项生产时间字段（真实 Excel 列）---
             { key: 'startTime',   label: '开始时间',     type: 'time',   required: false },
             { key: 'endTime',     label: '结束时间',     type: 'time',   required: false },
-            { key: 'actualHours', label: '实际生产小时数', type: 'number', required: false, min: 0 },
+            { key: 'actualHours', label: '实际生产小时数', type: 'number', required: false, min: 0, step: 0.1 },
+            { key: 'abnormalHours', label: '异常工时', type: 'number', required: false, min: 0, step: 0.1, hint: '单位：小时' },
             { key: 'planQty', label: '计划数', type: 'number', required: true, min: 0 },
             { key: 'produceQty', label: '生产数', type: 'number', required: true, min: 0 },
             { key: 'passQty', label: '合格数', type: 'number', required: true, min: 0 },
@@ -1387,7 +1406,8 @@ const WORKSHOP_CONFIG = {
             // --- 新增：3 项生产时间字段（真实 Excel 列）---
             { key: 'startTime',   label: '开始时间',     type: 'time',   required: false },
             { key: 'endTime',     label: '结束时间',     type: 'time',   required: false },
-            { key: 'actualHours', label: '实际生产小时数', type: 'number', required: false, min: 0 },
+            { key: 'actualHours', label: '实际生产小时数', type: 'number', required: false, min: 0, step: 0.1 },
+            { key: 'abnormalHours', label: '异常工时', type: 'number', required: false, min: 0, step: 0.1, hint: '单位：小时' },
             { key: 'planQty', label: '计划数', type: 'number', required: true, min: 0 },
             { key: 'produceQty', label: '生产数', type: 'number', required: true, min: 0 },
             { key: 'passQty', label: '合格数', type: 'number', required: true, min: 0 },
@@ -1408,7 +1428,8 @@ const WORKSHOP_CONFIG = {
             // --- 新增：3 项生产时间字段（真实 Excel 列）---
             { key: 'startTime',   label: '开始时间',     type: 'time',   required: false },
             { key: 'endTime',     label: '结束时间',     type: 'time',   required: false },
-            { key: 'actualHours', label: '实际生产小时数', type: 'number', required: false, min: 0 },
+            { key: 'actualHours', label: '实际生产小时数', type: 'number', required: false, min: 0, step: 0.1 },
+            { key: 'abnormalHours', label: '异常工时', type: 'number', required: false, min: 0, step: 0.1, hint: '单位：小时' },
             { key: 'planQty', label: '计划数', type: 'number', required: true, min: 0 },
             { key: 'produceQty', label: '生产数', type: 'number', required: true, min: 0 },
             { key: 'passQty', label: '合格数', type: 'number', required: true, min: 0 },
@@ -2152,7 +2173,7 @@ function initDB() {
                         delete rec[k];  // 值为0或空，直接删旧列
                         changed = true;
                     }
-                } else if (!/^(id|date|shift|productName|customerPartNo|qadNo|machine|planQty|produceQty|passQty|createdAt|startTime|endTime|actualHours|remark)$/.test(k) && !validDefects.has(k)) {
+                } else if (!/^(id|date|shift|productName|customerPartNo|qadNo|machine|planQty|produceQty|passQty|createdAt|startTime|endTime|actualHours|abnormalHours|remark)$/.test(k) && !validDefects.has(k)) {
                     // 完全无法识别的废弃列 → 移除以保持schema干净（如"侧围不良"新列表没有了，且无近似映射，删掉）
                     if (rec[k] !== undefined) { delete rec[k]; changed = true; }
                 }
@@ -3214,7 +3235,8 @@ function parseRowsToRecords() {
         // 新增：生产时间 3 字段的别名（含：简化写法、同义、英文）
         '开始时间': ['开始', '开机时间', '上班时间', 'start', 'start time', '起始时间', '开工时间', '开始时刻'],
         '结束时间': ['结束', '停机时间', '下班时间', 'end', 'end time', '终止时间', '收工时间', '结束时刻'],
-        '实际生产小时数': ['实际小时', '实际生产小时', '生产小时', '生产小时数', '小时数', '实际工时', '工时', '实际小时数', 'hours', '实际生产时间(h)', '实际生产时数', '生产时数']
+        '实际生产小时数': ['实际小时', '实际生产小时', '生产小时', '生产小时数', '小时数', '实际工时', '工时', '实际小时数', 'hours', '实际生产时间(h)', '实际生产时数', '生产时数'],
+        '异常工时': ['异常小时', '异常工时数', '异常小时数', '异常生产小时', '异常生产时间', '异常时间', '异常停线时间', '异常停机时间', 'abnormal', 'abnormalHours']
     };
     // 把 NEW_DEFECT_ALIASES 合并进 aliasMap（新名 / 旧名 / 全名 互相同义）
     Object.entries(NEW_DEFECT_ALIASES).forEach(([canon, aliases]) => {
@@ -3234,7 +3256,7 @@ function parseRowsToRecords() {
     // 匹配表头单元格 → 找到字段（加了负向过滤：小时/率/批次 → 直接返回null）
     // 注意：对于 3 个新增生产时间字段（startTime/endTime/actualHours），它们本身语义核心就是"开始/结束/时间/小时"，
     //      所以这些字段不受 NEGATIVE_STOPWORDS 黑名单拦截（否则永远匹配不上）。
-    const STOPWORD_EXEMPT_KEYS = new Set(['startTime', 'endTime', 'actualHours']);
+    const STOPWORD_EXEMPT_KEYS = new Set(['startTime', 'endTime', 'actualHours', 'abnormalHours']);
     function matchFieldCell(cellText, options) {
         options = options || {};
         const n = _normHeader(cellText);
@@ -3404,8 +3426,8 @@ function parseRowsToRecords() {
                 v = robustFormatDate(v);
             } else if (key === 'shift') {
                 v = normalizeShift(v);
-            } else if (['planQty', 'produceQty', 'passQty', 'actualHours'].includes(key)) {
-                // actualHours 也转数字，避免存 "11.00 " 这种带尾空格字符串
+            } else if (['planQty', 'produceQty', 'passQty', 'actualHours', 'abnormalHours'].includes(key)) {
+                // actualHours / abnormalHours 也转数字，避免存 "11.00 " 这种带尾空格字符串
                 v = toSafeNumber(v);
             }
             rec[key] = v;
@@ -3719,7 +3741,7 @@ function buildRecordFormHTML(ws, editData) {
         } else if (f.type === 'select') {
             input = `<select id="mf_${f.key}">${(f.options || []).map(o => `<option value="${o}" ${v === o ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
         } else if (f.type === 'number') {
-            input = `<input type="number" id="mf_${f.key}" value="${v}" min="${f.min || 0}" step="1">`;
+            input = `<input type="number" id="mf_${f.key}" value="${v}" min="${f.min || 0}" step="${f.step || 1}" placeholder="${f.hint || ''}">`;
         } else if (f.type === 'textarea') {
             const tv = (v === null || v === undefined) ? '' : String(v);
             input = `<textarea id="mf_${f.key}" rows="2" style="width:100%;min-height:56px;" placeholder="请输入备注 / 原因（选填）">${tv.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>`;
@@ -3935,7 +3957,7 @@ function submitManualRecord(ws) {
     let error = null;
     cfg.baseFields.forEach(f => {
         let v = (document.getElementById('mf_' + f.key)||{}).value; if (v==null) v='';
-        if (['planQty', 'produceQty', 'passQty', 'actualHours'].includes(f.key)) {
+        if (['planQty', 'produceQty', 'passQty', 'actualHours', 'abnormalHours'].includes(f.key)) {
             v = Number(v) || 0;
             if (v < 0) error = f.label + '不能为负数';
         }
@@ -3996,7 +4018,7 @@ function renderHistoryTable() {
     const pageList = paginate(list, historyPageNo, historyPageSize);
 
     // 动态附加列（装配含QAD号+客户零件号两列，注塑含机台+QAD号等）
-    const extraCols = cfg.baseFields.filter(f => !['date','shift','planQty','produceQty','passQty','productName','remark'].includes(f.key));
+    const extraCols = cfg.baseFields.filter(f => !['date','shift','planQty','produceQty','passQty','productName','remark','abnormalHours'].includes(f.key));
     const extraHead = extraCols.map(f => f.label);
     const colsReal = ['选择', '生产日期', '班别', ...extraHead, '产品名称', '计划', '生产', '合格', '合格率', '达成率', '操作'];
     const tbody = pageList.length === 0 ? renderEmptyTable(colsReal.length) : pageList.map(r => `
@@ -4134,7 +4156,7 @@ function saveRecord() {
     let err = null;
     cfg.baseFields.forEach(f => {
         let v = document.getElementById('mf_' + f.key).value;
-        if (['planQty', 'produceQty', 'passQty', 'actualHours'].includes(f.key)) {
+        if (['planQty', 'produceQty', 'passQty', 'actualHours', 'abnormalHours'].includes(f.key)) {
             v = Number(v) || 0;
             if (v < 0) err = f.label + '不能为负数';
         }
@@ -5433,8 +5455,10 @@ function renderAnalysisPage() {
         </tr>`;
     }).join('');
 
-    // 需求：各车间各产品统计汇总
-    renderAnaProductSummary();
+    // 需求：各车间各产品统计汇总（历史半成品，容器缺失时静默跳过，不阻断后续面板）
+    try { renderAnaProductSummary(); } catch (e) {}
+    // 异常统计表（计划达成率低于阈值）
+    renderAnaAbnormalTable();
 
 }
 
@@ -5446,9 +5470,12 @@ function renderAnaDefectRanking() {
     const sum = {};
     // 统计每个不良品下各产品的分布
     const productDist = {}; // defectName -> {productName: count}
+    const productTotal = {}; // productName -> 该时间段内生产总数（produceQty 之和，每条记录只累加一次）
     wss.forEach(ws => {
         const cfg = WORKSHOP_CONFIG[ws];
         DB[ws].filter(r => r.date >= range.start && r.date <= range.end).forEach(r => {
+            const pNameAll = r.productName || '未知产品';
+            productTotal[pNameAll] = (productTotal[pNameAll] || 0) + (+r.produceQty || 0);
             cfg.defectFields.forEach(f => {
                 const v = +r[f] || 0;
                 if (v > 0) {
@@ -5530,11 +5557,12 @@ function renderAnaDefectRanking() {
                 const products = productDist[defectName] || {};
                 const sortedProducts = Object.entries(products).sort((a, b) => b[1] - a[1]);
                 
-                document.getElementById('defect-detail-title').textContent = `「${defectName}」产品分布（共${defectTotal}个）`;
-                let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;color:#e8f1fb;"><thead><tr style="background:#132744;"><th style="padding:8px;border:1px solid #1a3a5c;text-align:left;color:#e8f1fb;">排名</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:left;color:#e8f1fb;">产品名称</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#e8f1fb;">数量</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#e8f1fb;">占比</th></tr></thead><tbody>';
+                document.getElementById('defect-detail-title').textContent = `「${defectName}」产品分布（不良共${defectTotal}个）`;
+                let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;color:#e8f1fb;"><thead><tr style="background:#132744;"><th style="padding:8px;border:1px solid #1a3a5c;text-align:left;color:#e8f1fb;">排名</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:left;color:#e8f1fb;">产品名称</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#e8f1fb;">生产总数</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#e8f1fb;">不良总数</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#e8f1fb;">占比</th></tr></thead><tbody>';
                 sortedProducts.forEach((p, i) => {
                     const pct = defectTotal > 0 ? (p[1] / defectTotal * 100).toFixed(1) : '0.0';
-                    html += `<tr><td style="padding:8px;border:1px solid #1a3a5c;">${i+1}</td><td style="padding:8px;border:1px solid #1a3a5c;">${p[0]}</td><td style="padding:8px;border:1px solid #1a3a5c;text-align:right;">${p[1].toLocaleString()}</td><td style="padding:8px;border:1px solid #1a3a5c;text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#e6f4ea;color:#1e8e3e;">${pct}%</span></td></tr>`;
+                    const totalProd = productTotal[p[0]] || 0;
+                    html += `<tr><td style="padding:8px;border:1px solid #1a3a5c;">${i+1}</td><td style="padding:8px;border:1px solid #1a3a5c;">${p[0]}</td><td style="padding:8px;border:1px solid #1a3a5c;text-align:right;">${totalProd.toLocaleString()}</td><td style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#ea4335;font-weight:600;">${p[1].toLocaleString()}</td><td style="padding:8px;border:1px solid #1a3a5c;text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#fce8e6;color:#c5221f;">${pct}%</span></td></tr>`;
                 });
                 html += '</tbody></table>';
                 document.getElementById('defect-detail-content').innerHTML = html;
@@ -5681,6 +5709,61 @@ function renderAnaProductSummary() {
     document.getElementById('ana-prod-summary-table').innerHTML = `<thead>${head1}</thead><tbody>${html}${emptyRow}</tbody>`;
 }
 
+// 异常统计表：统计计划达成率低于阈值的每条生产记录（异常工时取记录 abnormalHours，异常原因取备注 remark）
+function renderAnaAbnormalTable() {
+    const wsEl = document.getElementById('ana-abn-workshop');
+    const thEl = document.getElementById('ana-abn-threshold');
+    const tableEl = document.getElementById('ana-abn-table');
+    if (!wsEl || !thEl || !tableEl) return;
+    const range = getAnalysisRange();
+    const wsSel = wsEl.value;
+    const wss = wsSel === 'all' ? ['assembly', 'injection', 'silicone'] : [wsSel];
+    let threshold = parseFloat(thEl.value);
+    if (isNaN(threshold)) threshold = 100;
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const fmtH = v => { const n = Number(v); if (!n) return '-'; return Number.isInteger(n) ? String(n) : (+n.toFixed(2)).toString(); };
+    const rows = [];
+    wss.forEach(ws => {
+        DB[ws].filter(r => r.date >= range.start && r.date <= range.end).forEach(r => {
+            const c = calcComputedFields(r);
+            if (c.planRate < threshold) {
+                rows.push({
+                    ws: ws,
+                    date: r.date || '',
+                    shift: r.shift || '',
+                    productName: r.productName || '',
+                    planQty: Number(r.planQty) || 0,
+                    produceQty: Number(r.produceQty) || 0,
+                    planRate: c.planRate,
+                    abnormalHours: Number(r.abnormalHours) || 0,
+                    remark: (r.remark == null ? '' : String(r.remark)).trim()
+                });
+            }
+        });
+    });
+    // 排序：日期倒序；同日期达成率升序（达成率最低的排最前）
+    rows.sort((a, b) => (b.date.localeCompare(a.date)) || (a.planRate - b.planRate));
+    const totalAbnHours = rows.reduce((s, x) => s + (x.abnormalHours || 0), 0);
+    const hintEl = document.getElementById('ana-abn-hint');
+    if (hintEl) hintEl.innerHTML = `共 <b style="color:var(--danger);">${rows.length}</b> 条异常记录 · 异常工时合计 <b>${fmtH(totalAbnHours) === '-' ? '0' : fmtH(totalAbnHours)}</b> 小时（${range.label}：${range.start} 至 ${range.end}，计划达成率 &lt; ${threshold}%）`;
+    const cols = ['车间', '日期', '班别', '产品名称', '计划数量', '生产数量', '计划达成率', '异常工时', '异常原因'];
+    const head = '<tr>' + cols.map(c => `<th class="${(c === '产品名称' || c === '异常原因') ? 'cell-left' : ''}">${c}</th>`).join('') + '</tr>';
+    const body = rows.length === 0
+        ? `<tr><td colspan="${cols.length}" class="table-empty">✅ 该时间段内暂无低于阈值的异常记录</td></tr>`
+        : rows.map(x => `<tr>
+            <td>${WORKSHOP_CONFIG[x.ws].name}</td>
+            <td>${x.date}</td>
+            <td><span class="badge badge-primary">${x.shift || ''}</span></td>
+            <td class="cell-left"><b>${esc(x.productName)}</b></td>
+            <td style="text-align:right;">${x.planQty.toLocaleString()}</td>
+            <td style="text-align:right;">${x.produceQty.toLocaleString()}</td>
+            <td style="text-align:center;">${planRateBadge(x.planRate)}</td>
+            <td style="text-align:right;${x.abnormalHours > 0 ? 'color:var(--danger);font-weight:600;' : ''}">${fmtH(x.abnormalHours)}</td>
+            <td class="cell-left" style="min-width:180px;">${x.remark ? esc(x.remark) : '<span style="color:var(--text-tertiary);">-</span>'}</td>
+        </tr>`).join('');
+    tableEl.innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
+}
+
 // 需求：各车间平均合格率/平均计划达成率 按周区间折线图（自然周=周一至周日，周内各车间先汇总再算平均率）
 let anaChartWeekPass, anaChartWeekPlan;
 function getWeekStartISO(dateStr) {
@@ -5773,6 +5856,26 @@ function exportAnalysisCSV() {
         });
         if (showTotalM) csv += `,${tot.plan},${tot.prod},${tot.pass},${tot.prod - tot.pass},${tot.plan > 0 ? +(tot.prod / tot.plan * 100).toFixed(2) : ''},${tot.prod > 0 ? +(tot.pass / tot.prod * 100).toFixed(2) : ''}`;
         csv += '\n';
+    });
+    // 异常统计表（计划达成率低于阈值，阈值取页面当前设置）
+    const abnThrEl = document.getElementById('ana-abn-threshold');
+    let abnThreshold = abnThrEl ? parseFloat(abnThrEl.value) : 100;
+    if (isNaN(abnThreshold)) abnThreshold = 100;
+    const abnRows = [];
+    wss.forEach(ws => {
+        DB[ws].filter(r => r.date >= range.start && r.date <= range.end).forEach(r => {
+            const c = calcComputedFields(r);
+            if (c.planRate < abnThreshold) {
+                abnRows.push({ ws, date: r.date || '', shift: r.shift || '', name: r.productName || '', plan: +r.planQty || 0, prod: +r.produceQty || 0, rate: c.planRate, abn: +r.abnormalHours || 0, remark: (r.remark == null ? '' : String(r.remark)).trim() });
+            }
+        });
+    });
+    abnRows.sort((a, b) => (b.date.localeCompare(a.date)) || (a.rate - b.rate));
+    csv += `\n=== 异常统计表（计划达成率 < ${abnThreshold}%，共 ${abnRows.length} 条） ===\n`;
+    csv += '车间,日期,班别,产品名称,计划数量,生产数量,计划达成率(%),异常工时,异常原因\n';
+    abnRows.forEach(x => {
+        const rmk = String(x.remark).replace(/"/g, '""');
+        csv += `${WORKSHOP_CONFIG[x.ws].name},${x.date},${x.shift},"${x.name}",${x.plan},${x.prod},${x.rate},${x.abn},"${rmk}"\n`;
     });
     csv += '\n=== 各车间明细（共 ' + wss.length + ' 个工作表） ===\n';
     wss.forEach(ws => {
