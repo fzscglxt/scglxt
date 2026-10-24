@@ -3704,6 +3704,7 @@ function renderManualForm() {
     const container = document.getElementById('manual-form-container');
     if (!ws) { container.innerHTML = '<div class="perm-banner">👆 请先选择车间</div>'; return; }
     container.innerHTML = buildRecordFormHTML(ws, null);
+    setTimeout(() => recalcPlanQty(ws), 0);
 }
 
 function buildRecordFormHTML(ws, editData) {
@@ -3740,8 +3741,13 @@ function buildRecordFormHTML(ws, editData) {
                 <datalist id="mold-list">${moldOptions.map(o => `<option value="${o}">`).join('')}</datalist>`;
         } else if (f.type === 'select') {
             input = `<select id="mf_${f.key}">${(f.options || []).map(o => `<option value="${o}" ${v === o ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+        } else if (f.key === 'planQty') {
+            // 计划数：按（实际生产小时数 + 异常工时）×3600 ÷ 标准工时(秒/件) 自动计算，只读、禁止手动修改
+            input = `<input type="number" id="mf_planQty" value="${v}" min="0" step="1" readonly tabindex="-1" onkeydown="event.preventDefault();" onpaste="event.preventDefault();" oncontextmenu="return false;" style="background:#f1f3f5;cursor:not-allowed;color:#555;" placeholder="自动计算">
+                <div id="mf_planQty_note" style="font-size:11px;color:#9aa0a6;margin-top:4px;line-height:1.4;">计划数由「实际生产小时数 + 异常工时」按产品标准工时自动计算，不可手动修改</div>`;
         } else if (f.type === 'number') {
-            input = `<input type="number" id="mf_${f.key}" value="${v}" min="${f.min || 0}" step="${f.step || 1}" placeholder="${f.hint || ''}">`;
+            const calcAttr = (f.key === 'actualHours' || f.key === 'abnormalHours') ? ` oninput="recalcPlanQty('${ws}')"` : '';
+            input = `<input type="number" id="mf_${f.key}" value="${v}" min="${f.min || 0}" step="${f.step || 1}" placeholder="${f.hint || ''}"${calcAttr}>`;
         } else if (f.type === 'textarea') {
             const tv = (v === null || v === undefined) ? '' : String(v);
             input = `<textarea id="mf_${f.key}" rows="2" style="width:100%;min-height:56px;" placeholder="请输入备注 / 原因（选填）">${tv.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>`;
@@ -3760,6 +3766,50 @@ function buildRecordFormHTML(ws, editData) {
         <button class="btn btn-primary" onclick="submitManualRecord('${ws}')">💾 提交保存</button>
     </div>`;
     return baseHTML + defectHTML + footer;
+}
+
+// 计划数自动计算（纯函数）：（实际生产小时数 + 异常工时）单位小时，标准工时单位为秒/件；
+// 计划数 = 总工时(小时) × 3600 ÷ 标准工时(秒/件)，四舍五入取整。标准工时缺失返回 null（不覆盖历史手填值）。
+function computePlanQty(ws, productName, actualHours, abnormalHours) {
+    const name = String(productName == null ? '' : productName).trim();
+    if (!name) return null;
+    const p = (DB.products || []).find(x => x.productName === name && x.prodWorkshop === ws);
+    const stdSec = p && p.standardHours ? Number(p.standardHours) : 0;
+    if (!(stdSec > 0) || !isFinite(stdSec)) return null;
+    const ah = Number(actualHours) || 0;
+    const bh = Number(abnormalHours) || 0;
+    return Math.round((ah + bh) * 3600 / stdSec);
+}
+
+// 根据当前表单的产品/实际生产小时/异常工时重算计划数并刷新提示
+function recalcPlanQty(ws) {
+    const planEl = document.getElementById('mf_planQty');
+    if (!planEl) return;
+    const nameEl = document.getElementById('mf_productName');
+    const name = nameEl ? String(nameEl.value || '').trim() : '';
+    const ahEl = document.getElementById('mf_actualHours');
+    const bhEl = document.getElementById('mf_abnormalHours');
+    const ah = ahEl ? (parseFloat(ahEl.value) || 0) : 0;
+    const bh = bhEl ? (parseFloat(bhEl.value) || 0) : 0;
+    const note = document.getElementById('mf_planQty_note');
+    const p = name ? (DB.products || []).find(x => x.productName === name && x.prodWorkshop === ws) : null;
+    const stdSec = p && p.standardHours ? Number(p.standardHours) : 0;
+    if (stdSec > 0 && isFinite(stdSec)) {
+        const plan = Math.round((ah + bh) * 3600 / stdSec);
+        planEl.value = plan;
+        if (note) {
+            note.style.color = '#9aa0a6';
+            note.textContent = `（实际生产小时 ${ah} + 异常工时 ${bh}）× 3600 ÷ 标准工时 ${stdSec} 秒/件 = ${plan} 件（自动计算，不可手改）`;
+        }
+    } else {
+        // 标准工时缺失：保留输入框已有值（编辑历史记录时不抹掉），仅提示，仍不允许手改
+        if (note) {
+            note.style.color = '#e37400';
+            note.textContent = name
+                ? '该产品未在「产品信息」中维护标准工时（秒/件），无法自动计算计划数，请先维护标准工时'
+                : '请先选择产品，计划数将按（实际生产小时数 + 异常工时）÷标准工时自动计算';
+        }
+    }
 }
 
 // 手工录入：选定产品后自动填充 QAD号和客户零件号（同步产品信息表）
@@ -3943,6 +3993,7 @@ function selectProduct(ws, productName) {
     if (hiddenInput) hiddenInput.value = productName;
     if (dropdown) dropdown.style.display = 'none';
     onManualProductChange(ws, productName);
+    recalcPlanQty(ws);
 }
 
 // 产品名称可搜索下拉：隐藏下拉列表
@@ -3966,6 +4017,9 @@ function submitManualRecord(ws) {
         }
         obj[f.key] = v;
     });
+    // 计划数以公式为准（只读自动计算，提交时二次兜底）
+    const autoPlanManual = computePlanQty(ws, obj.productName, obj.actualHours, obj.abnormalHours);
+    if (autoPlanManual !== null) obj.planQty = autoPlanManual;
     if (Number(obj.passQty) > Number(obj.produceQty)) error = '合格数不能大于生产数';
     if (error) { showToast('❌ ' + error, 'error'); return; }
     // ✅ 修复：defectFields 是字符串数组，不能用 f.key → 直接用 f 本身
@@ -4097,6 +4151,7 @@ function openAddForm(ws) {
     document.getElementById('record-form-container').innerHTML = buildRecordFormHTML(ws, null);
     document.getElementById('record-form-container').dataset.ws = ws;
     document.getElementById('modal-record').classList.add('show');
+    setTimeout(() => recalcPlanQty(ws), 0);
 }
 
 function editRecord(ws, id) {
@@ -4107,6 +4162,7 @@ function editRecord(ws, id) {
     document.getElementById('record-form-container').innerHTML = buildRecordFormHTML(ws, r);
     document.getElementById('record-form-container').dataset.ws = ws;
     document.getElementById('modal-record').classList.add('show');
+    setTimeout(() => recalcPlanQty(ws), 0);
 }
 
 // 推送全量生产事件到模具管理系统，按使用周期规则重建模具/工装出入库（失败静默，不影响生产记录保存）
@@ -4163,6 +4219,9 @@ function saveRecord() {
         if (f.required && v === '') err = f.label + '为必填项';
         obj[f.key] = v;
     });
+    // 计划数以公式为准（只读自动计算，提交时二次兜底）
+    const autoPlanModal = computePlanQty(ws, obj.productName, obj.actualHours, obj.abnormalHours);
+    if (autoPlanModal !== null) obj.planQty = autoPlanModal;
     if (Number(obj.passQty) > Number(obj.produceQty)) err = '合格数不能大于生产数';
     if (err) { showToast('❌ ' + err, 'error'); return; }
     // ✅ 修复：defectFields是字符串数组 f不是对象，直接用 f
