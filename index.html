@@ -963,7 +963,7 @@ input[type=file]::file-selector-button:hover{background:var(--primary-light);col
                 <div class="panel" style="text-align:center;padding:24px;">
                     <div style="font-size:13px;color:#666;margin-bottom:8px;">性能率</div>
                     <div id="oee-performance" style="font-size:36px;font-weight:700;color:#c084fc;">--</div>
-                    <div style="font-size:11px;color:#999;margin-top:4px;">标准周期×产量 / 运行时间</div>
+                    <div style="font-size:11px;color:#999;margin-top:4px;">总产量 / (运行时间 / 标准周期)</div>
                 </div>
                 <div class="panel" style="text-align:center;padding:24px;">
                     <div style="font-size:13px;color:#666;margin-bottom:8px;">质量率</div>
@@ -5282,13 +5282,14 @@ function renderOeePage() {
         
         // 标准OEE计算公式
         const availability = planTime > 0 ? +(runTime / planTime * 100).toFixed(1) : 0;
-        // 性能率 = (标准周期秒 × 产量) / (运行时间分钟 × 60)
-        let stdTime = 0;
+        // 性能率 = 总产量 / (运行时间 / 标准周期) = 实际总产量 / 理论产量
+        let theoreticalQty = 0;
         DB[ws].filter(r => r.date >= start && r.date <= end).forEach(r => {
             const stdSec = stdHoursMap[r.productName] || 30;
-            stdTime += stdSec * (+r.produceQty || 0);
+            const rtSec = (+r.actualHours || 0) * 3600; // 该记录运行时间（秒）
+            if (stdSec > 0) theoreticalQty += rtSec / stdSec; // 该记录理论产量
         });
-        const performance = runTime > 0 ? Math.min(100, +(stdTime / (runTime * 60) * 100).toFixed(1)) : 0;
+        const performance = theoreticalQty > 0 ? Math.min(100, +(prod / theoreticalQty * 100).toFixed(1)) : 0;
         const quality = prod > 0 ? +(pass / prod * 100).toFixed(1) : 0;
         const oee = +(availability * performance * quality / 10000).toFixed(1);
         
@@ -5308,14 +5309,15 @@ function renderOeePage() {
     
     // 计算总体指标
     const totalAvailability = totalPlanTime > 0 ? +(totalRunTime / totalPlanTime * 100).toFixed(1) : 0;
-    let totalStdTime = 0;
+    let totalTheoreticalQty = 0;
     wss.forEach(ws => {
         DB[ws].filter(r => r.date >= start && r.date <= end).forEach(r => {
             const stdSec = stdHoursMap[r.productName] || 30;
-            totalStdTime += stdSec * (+r.produceQty || 0);
+            const rtSec = (+r.actualHours || 0) * 3600; // 该记录运行时间（秒）
+            if (stdSec > 0) totalTheoreticalQty += rtSec / stdSec; // 该记录理论产量
         });
     });
-    const totalPerformance = totalRunTime > 0 ? Math.min(100, +(totalStdTime / (totalRunTime * 60) * 100).toFixed(1)) : 0;
+    const totalPerformance = totalTheoreticalQty > 0 ? Math.min(100, +(totalProd / totalTheoreticalQty * 100).toFixed(1)) : 0;
     const totalQuality = totalProd > 0 ? +(totalPass / totalProd * 100).toFixed(1) : 0;
     const totalOee = +(totalAvailability * totalPerformance * totalQuality / 10000).toFixed(1);
     
@@ -5357,7 +5359,9 @@ function renderOeePage() {
             const downTime = Math.max(0, planTime - runTime);
             
             const availability = planTime > 0 ? +(runTime / planTime * 100).toFixed(1) : 0;
-            const perfRaw = runTime > 0 ? (stdSec * prod) / (runTime * 60) * 100 : 0;
+            const runTimeSec = runTime * 60;
+            const theoreticalQty = stdSec > 0 ? runTimeSec / stdSec : 0;
+            const perfRaw = theoreticalQty > 0 ? prod / theoreticalQty * 100 : 0;
             const performance = Math.min(100, +perfRaw.toFixed(1));
             const oee = +(availability * performance * quality / 10000).toFixed(1);
             
