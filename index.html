@@ -5530,11 +5530,13 @@ function renderAnaDefectRanking() {
     // 统计每个不良品下各产品的分布
     const productDist = {}; // defectName -> {productName: count}
     const productTotal = {}; // productName -> 该时间段内生产总数（produceQty 之和，每条记录只累加一次）
+    const productPass = {}; // productName -> 该时间段内合格总数（passQty 之和，每条记录只累加一次）
     wss.forEach(ws => {
         const cfg = WORKSHOP_CONFIG[ws];
         DB[ws].filter(r => r.date >= range.start && r.date <= range.end).forEach(r => {
             const pNameAll = r.productName || '未知产品';
             productTotal[pNameAll] = (productTotal[pNameAll] || 0) + (+r.produceQty || 0);
+            productPass[pNameAll] = (productPass[pNameAll] || 0) + (+r.passQty || 0);
             cfg.defectFields.forEach(f => {
                 const v = +r[f] || 0;
                 if (v > 0) {
@@ -5617,11 +5619,13 @@ function renderAnaDefectRanking() {
                 const sortedProducts = Object.entries(products).sort((a, b) => b[1] - a[1]);
                 
                 document.getElementById('defect-detail-title').textContent = `「${defectName}」产品分布（不良共${defectTotal}个）`;
-                let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;color:#e8f1fb;"><thead><tr style="background:#132744;"><th style="padding:8px;border:1px solid #1a3a5c;text-align:left;color:#e8f1fb;">排名</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:left;color:#e8f1fb;">产品名称</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#e8f1fb;">生产总数</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#e8f1fb;">不良总数</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#e8f1fb;">占比</th></tr></thead><tbody>';
+                let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;color:#e8f1fb;"><thead><tr style="background:#132744;"><th style="padding:8px;border:1px solid #1a3a5c;text-align:left;color:#e8f1fb;">排名</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:left;color:#e8f1fb;">产品名称</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#e8f1fb;">生产总数</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#e8f1fb;">不良总数</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#e8f1fb;">合格率</th><th style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#e8f1fb;">占比</th></tr></thead><tbody>';
                 sortedProducts.forEach((p, i) => {
                     const pct = defectTotal > 0 ? (p[1] / defectTotal * 100).toFixed(1) : '0.0';
                     const totalProd = productTotal[p[0]] || 0;
-                    html += `<tr><td style="padding:8px;border:1px solid #1a3a5c;">${i+1}</td><td style="padding:8px;border:1px solid #1a3a5c;">${p[0]}</td><td style="padding:8px;border:1px solid #1a3a5c;text-align:right;">${totalProd.toLocaleString()}</td><td style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#ea4335;font-weight:600;">${p[1].toLocaleString()}</td><td style="padding:8px;border:1px solid #1a3a5c;text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#fce8e6;color:#c5221f;">${pct}%</span></td></tr>`;
+                    const totalPass = productPass[p[0]] || 0;
+                    const qcRate = totalProd > 0 ? +(totalPass / totalProd * 100).toFixed(2) : 0;
+                    html += `<tr><td style="padding:8px;border:1px solid #1a3a5c;">${i+1}</td><td style="padding:8px;border:1px solid #1a3a5c;">${p[0]}</td><td style="padding:8px;border:1px solid #1a3a5c;text-align:right;">${totalProd.toLocaleString()}</td><td style="padding:8px;border:1px solid #1a3a5c;text-align:right;color:#ea4335;font-weight:600;">${p[1].toLocaleString()}</td><td style="padding:8px;border:1px solid #1a3a5c;text-align:right;">${passRateBadge(qcRate)}</td><td style="padding:8px;border:1px solid #1a3a5c;text-align:right;"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#fce8e6;color:#c5221f;">${pct}%</span></td></tr>`;
                 });
                 html += '</tbody></table>';
                 document.getElementById('defect-detail-content').innerHTML = html;
@@ -8691,7 +8695,7 @@ function hideGanttTip() {
 </script>
 <!-- 不良品产品分布弹窗 -->
 <div id="defect-detail-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
-    <div style="background:#0d1f3c;border:1px solid #1a3a5c;color:#e8f1fb;border-radius:12px;width:600px;max-width:90%;max-height:80vh;overflow:auto;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,0.45);">
+    <div style="background:#0d1f3c;border:1px solid #1a3a5c;color:#e8f1fb;border-radius:12px;width:720px;max-width:92%;max-height:80vh;overflow:auto;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,0.45);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <h3 style="margin:0;font-size:18px;color:#e8f1fb;" id="defect-detail-title">不良品产品分布</h3>
             <button onclick="document.getElementById('defect-detail-modal').style.display='none'" style="background:none;border:none;font-size:24px;cursor:pointer;color:#9fb3c8;">&times;</button>
